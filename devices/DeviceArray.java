@@ -1,6 +1,6 @@
-package FR.devices;
+package devices;
 
-public class DeviceArray<T extends equipment> {
+public class DeviceArray<T extends Equipment> {
     private int count;
     private final T[] devices;
     

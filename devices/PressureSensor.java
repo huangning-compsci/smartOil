@@ -1,29 +1,88 @@
-package FR.devices;
+package devices;
 
-public class PressureSensor extends equipment{
-    double pressureRange;
-    String accuracy;
-    double currentPressure;
-    double upperLimit;
-    double lowerLimit;
-    static String Name="PS";
-    static int index;
-    public static final DeviceArray<PressureSensor> DEVICES =
+public class PressureSensor extends Equipment{
+    private double pressureRange;
+    private String accuracy;
+    private double currentPressure;
+    private double upperLimit;
+    private double lowerLimit;
+    private static final String NAME="PS";
+    private static int index;
+    private static final DeviceArray<PressureSensor> DEVICES =
         new DeviceArray<>(new PressureSensor[10]);
+
+    public PressureSensor(){
+        super(
+            NAME+'_'+(++index),
+            "PressureSensor",
+            "",
+            "",
+            "",
+            "pressureRange,accuracy,currentPressure,upperLimit,lowerLimit"
+        );
+        this.pressureRange=4.0;
+        this.accuracy="0.5级";
+    }
 
     public PressureSensor(
             String e_wellsite,
             String e_Install_date,
             String e_model
             ){
-        super(
-            "PressureSensor",
-            e_model,
-            e_wellsite,
-            e_Install_date,
-            "pressureRange,accuracy,currentPressure,upperLimit,lowerLimit"
-            );
+        this();
+        setModel(e_model);
+        setWellsite(e_wellsite);
+        setInstallDate(e_Install_date);
 
-        this.e_ID=Name+'_'+(++index);
+    }
+    public static DeviceArray<PressureSensor> getDevices(){
+        return DEVICES;
+    }
+
+    public double getPressureRange(){
+        return pressureRange;
+    }
+
+    public void setPressureRange(double pressureRange){
+        this.pressureRange=pressureRange;
+    }
+
+    public String getAccuracy(){
+        return accuracy;
+    }
+
+    public void setAccuracy(String accuracy){
+        this.accuracy=accuracy;
+    }
+
+    public double getCurrentPressure(){
+        return currentPressure;
+    }
+
+    public void setCurrentPressure(double currentPressure){
+        this.currentPressure=currentPressure;
+    }
+
+    public double getUpperLimit(){
+        return upperLimit;
+    }
+
+    public void setUpperLimit(double upperLimit){
+        this.upperLimit=upperLimit;
+    }
+
+    public double getLowerLimit(){
+        return lowerLimit;
+    }
+
+    public void setLowerLimit(double lowerLimit){
+        this.lowerLimit=lowerLimit;
+    }
+    @Override 
+    public void collectData(){
+        
+    } 
+    public boolean checkAlarm(){
+        return true;
     }
 }

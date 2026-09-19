@@ -1,24 +1,23 @@
-package FR;
 import java.util.Scanner;
-
-import FR.devices.CentrifugalPump;
-import FR.devices.DeviceArray;
-import FR.devices.FlowMeter;
-import FR.devices.PressureSensor;
-import FR.devices.PumpingUnit;
-import FR.devices.TemperatureSensor;
-import FR.devices.equipment;
-
-
+import devices.CentrifugalPump;
+import devices.Compressor;
+import devices.DeviceArray;
+import devices.FlowMeter;
+import devices.PressureSensor;
+import devices.PumpingUnit;
+import devices.TemperatureSensor;
+import devices.Equipment;
 
 
-public class FR_DEV{
+
+
+public class FrDev{
     
     //添加的代码应该写成equipment.add(),然后每个子类的add都不一样
     //加入id查询系统，将参数改成id
    
 
-    static <T extends equipment> boolean add(
+    static <T extends Equipment> boolean add(
         DeviceArray<T> target,
         T device){
         
@@ -26,7 +25,7 @@ public class FR_DEV{
         
     }
 
-    static boolean show_info(equipment device){
+    static boolean showInfo(Equipment device){
         if(device==null){
             return false;
         }
@@ -57,7 +56,7 @@ public class FR_DEV{
             || (c>=0xFFE0 && c<=0xFFE6) ? 2 : 1).sum();
     }
     //id查询功能
-    static equipment findById(String id){
+    static Equipment findById(String id){
         if (id==null){
             return null;
         }
@@ -80,15 +79,17 @@ public class FR_DEV{
 
         switch (parts[0]) {
             case "PU":
-                return PumpingUnit.DEVICES.get(index);
+                return PumpingUnit.getDevices().get(index);
             case "CP":
-                return CentrifugalPump.DEVICES.get(index);
+                return CentrifugalPump.getDevices().get(index);
             case "PS":
-                return PressureSensor.DEVICES.get(index);
+                return PressureSensor.getDevices().get(index);
             case "TS":
-                return TemperatureSensor.DEVICES.get(index);
+                return TemperatureSensor.getDevices().get(index);
             case "FM":
-                return FlowMeter.DEVICES.get(index);
+                return FlowMeter.getDevices().get(index);
+            case "CM":
+                return Compressor.getDevices().get(index);
             default:
                 return null;
         }
@@ -99,7 +100,7 @@ public class FR_DEV{
     //删除程序如下
     static boolean deleteById(String id,Scanner sc) {
 
-        equipment device = findById(id);
+        Equipment device = findById(id);
 
         // 查询不到设备
         if (device == null) {
@@ -109,7 +110,7 @@ public class FR_DEV{
 
         // 显示设备详细信息
         System.out.println("找到设备：");
-        show_info(device);
+        showInfo(device);
 
         // 确认删除
         System.out.print("确定要删除该设备吗？(y/n)：");
@@ -131,23 +132,27 @@ public class FR_DEV{
         switch (parts[0]) {
 
             case "PU":
-                result = PumpingUnit.DEVICES.remove(index);
+                result = PumpingUnit.getDevices().remove(index);
                 break;
 
             case "CP":
-                result = CentrifugalPump.DEVICES.remove(index);
+                result = CentrifugalPump.getDevices().remove(index);
                 break;
 
             case "PS":
-                result = PressureSensor.DEVICES.remove(index);
+                result = PressureSensor.getDevices().remove(index);
                 break;
 
             case "TS":
-                result = TemperatureSensor.DEVICES.remove(index);
+                result = TemperatureSensor.getDevices().remove(index);
                 break;
 
             case "FM":
-                result = FlowMeter.DEVICES.remove(index);
+                result = FlowMeter.getDevices().remove(index);
+                break;
+
+            case "CM":
+                result = Compressor.getDevices().remove(index);
                 break;
 
             default:
@@ -160,6 +165,37 @@ public class FR_DEV{
         return result;
     }
     //请黄宁同志思考，是否会出现数组越界
+
+    //设备信息修改与补充代码如下
+    static boolean modifyById(String id, String newWellsite, String newInstallDate,
+            String newModel, String newStatus) {
+
+    Equipment device = findById(id);
+
+    // 查询不到设备
+    if (device == null) {
+        return false;
+    }
+
+    // 逐项修改，空字符串表示不修改
+    if (!newWellsite.isEmpty()) {
+        device.setWellsite(newWellsite);
+    }
+
+    if (!newInstallDate.isEmpty()) {
+        device.setInstallDate(newInstallDate);
+    }
+
+    if (!newModel.isEmpty()) {
+        device.setModel(newModel);
+    }
+
+    if (!newStatus.isEmpty()) {
+        device.setStatus(newStatus);
+    }
+
+    return true;
+}
 }
     
     
