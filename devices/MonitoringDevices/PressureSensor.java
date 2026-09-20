@@ -1,6 +1,8 @@
-package devices;
+package devices.MonitoringDevices;
 
-public class PressureSensor extends Equipment{
+import devices.DeviceArray;
+
+public class PressureSensor extends MonitoringEquipment{
     private double pressureRange;
     private String accuracy;
     private double currentPressure;

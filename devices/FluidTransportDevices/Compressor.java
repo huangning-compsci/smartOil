@@ -1,6 +1,8 @@
-package devices;
+package devices.FluidTransportDevices;
 
-public class Compressor extends Equipment{
+import devices.DeviceArray;
+
+public class Compressor extends FluidTransportEquipment{
     private double exhaustPressure;
     private double exhaustFlow;
     private double power;

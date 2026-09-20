@@ -5,7 +5,7 @@ public class DeviceArray<T extends Equipment> {
     private final T[] devices;
     
 
-    DeviceArray(T[] devices){
+    public DeviceArray(T[] devices){
         this.devices=devices;
         this.count=0;
 

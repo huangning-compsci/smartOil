@@ -1,9 +1,9 @@
-import devices.CentrifugalPump;
-import devices.Compressor;
-import devices.FlowMeter;
-import devices.PressureSensor;
-import devices.PumpingUnit;
-import devices.TemperatureSensor;
+import devices.FluidTransportDevices.CentrifugalPump;
+import devices.FluidTransportDevices.Compressor;
+import devices.MonitoringDevices.FlowMeter;
+import devices.MonitoringDevices.PressureSensor;
+import devices.ProductionDevices.PumpingUnit;
+import devices.MonitoringDevices.TemperatureSensor;
 import devices.Equipment;
 import java.util.Scanner;
 
@@ -14,7 +14,8 @@ public class FrUi{
         
         Scanner sc=new Scanner(System.in);
         boolean CONTINUE=true;
-        
+        Equipment [] allDevices=new Equipment[100];
+        int count=0;
         while (CONTINUE){
             boolean continue1_=true;
             boolean continue2_=true;
@@ -47,6 +48,7 @@ public class FrUi{
                 System.out.println("4.删除设备");
                 System.out.println("5.退出");
                 System.out.println("6.返回上一级菜单");
+                System.out.println("7.查看设备台账");
 
                 System.out.println("=".repeat(30));
 
@@ -97,7 +99,10 @@ public class FrUi{
                                 PumpingUnit device = new PumpingUnit(wellsite, installDate, model);
                                 boolean Success=FrDev.add(PumpingUnit.getDevices(),device);
                                 System.out.println();
-                                System.out.println (Success ? "添加成功" : "提交失败：数组已满");
+                                if(Success){
+                                    allDevices[count++]=device;//自动向上转换
+                                    System.out.println ("添加成功");
+                                }else{System.out.println("提交失败：数组已满");}
                                 continue1_1=false;
                                 break;}
                             
@@ -129,7 +134,10 @@ public class FrUi{
                                 CentrifugalPump device = new CentrifugalPump(wellsite, installDate, model);
                                 boolean Success=FrDev.add(CentrifugalPump.getDevices(),device);
                                 System.out.println();
-                                System.out.println(Success?"添加成功":"添加失败：数组已满");
+                                if(Success){
+                                    allDevices[count++]=device;//自动向上转换
+                                    System.out.println ("添加成功");
+                                }else{System.out.println("提交失败：数组已满");}
                                 continue1_1=false;
                                 break;
                             }
@@ -161,7 +169,10 @@ public class FrUi{
                                 PressureSensor device = new PressureSensor(wellsite, installDate, model);
                                 boolean Success=FrDev.add(PressureSensor.getDevices(),device);
                                 System.out.println();
-                                System.out.println(Success?"添加成功":"添加失败：数组已满");
+                                if(Success){
+                                    allDevices[count++]=device;//自动向上转换
+                                    System.out.println ("添加成功");
+                                }else{System.out.println("提交失败：数组已满");}
                                 continue1_1=false;
                                 break;
                             }
@@ -193,7 +204,10 @@ public class FrUi{
                                 TemperatureSensor device = new TemperatureSensor(wellsite, installDate, model);
                                 boolean Success=FrDev.add(TemperatureSensor.getDevices(),device);
                                 System.out.println();
-                                System.out.println(Success?"添加成功":"添加失败：数组已满");
+                                if(Success){
+                                    allDevices[count++]=device;//自动向上转换
+                                    System.out.println ("添加成功");
+                                }else{System.out.println("提交失败：数组已满");}
                                 continue1_1=false;
                                 break;
                             }
@@ -225,7 +239,10 @@ public class FrUi{
                                 FlowMeter device = new FlowMeter(wellsite, installDate, model);
                                 boolean Success=FrDev.add(FlowMeter.getDevices(),device);
                                 System.out.println();
-                                System.out.println(Success?"添加成功":"添加失败：数组已满");
+                                if(Success){
+                                    allDevices[count++]=device;//自动向上转换
+                                    System.out.println ("添加成功");
+                                }else{System.out.println("提交失败：数组已满");}
                                 continue1_1=false;
                                 break;
                             }
@@ -255,10 +272,14 @@ public class FrUi{
                                 Compressor device = new Compressor(wellsite, installDate, model);
                                 boolean Success=FrDev.add(Compressor.getDevices(),device);
                                 System.out.println();
-                                System.out.println(Success?"添加成功":"添加失败：数组已满");
+                                if(Success){
+                                    allDevices[count++]=device;//自动向上转换
+                                    System.out.println ("添加成功");
+                                }else{System.out.println("提交失败：数组已满");}
                                 continue1_1=false;
                                 break;
                             }
+                            
                             default:
                                 System.out.println("暂不支持该设备，是否回到首页重新选择");
             
@@ -300,7 +321,7 @@ public class FrUi{
                                 System.out.println("未找到相关设备");
                             }else{
                             System.out.println("-".repeat(30)+"设备信息"+"-".repeat(30));
-                            FrDev.showInfo(device);  //改成编号为参数,泛型
+                            System.out.println(FrDev.showInfo(device));  //改成编号为参数,泛型
                             System.out.println("-".repeat(68));
                             }
                             break;
@@ -319,7 +340,7 @@ public class FrUi{
                                 System.out.println("未找到设备：" + modifyId);
                             } else {
                                 System.out.println("找到设备，当前信息如下：");
-                                FrDev.showInfo(modifyDevice);
+                                System.out.println(FrDev.showInfo(modifyDevice));
                                 System.out.println("\t    信息修改");
                                 System.out.print("所属井场（当前：" + modifyDevice.getWellsite() + "，回车跳过）：");
                                 String newWellsite = sc.nextLine().trim();
@@ -362,7 +383,7 @@ public class FrUi{
                         }
                         } else {
                             System.out.println("修改后的信息如下：");
-                            FrDev.showInfo(modifyDevice);
+                            System.out.println(FrDev.showInfo(modifyDevice));
                             continue1_3 = false;  // 修改成功，退出这个子循环
                         }
                    }
@@ -375,6 +396,11 @@ public class FrUi{
                                 System.out.println("请输入设备id");
                                 String Id=sc.next();
                 
+                                Equipment deleteDevice=FrDev.findById(Id);
+                                if(deleteDevice!=null){
+                                    System.out.println("找到设备：");
+                                    System.out.println(FrDev.showInfo(deleteDevice));
+                                }
                                 boolean Success=FrDev.deleteById(Id, sc);
                                 System.out.println();
                                 System.out.print(Success?"设备 " + Id + " 删除成功！":"设备删除失败！");
@@ -415,6 +441,11 @@ public class FrUi{
                         case "6":
                             continue1_=false;
                             break;
+                        
+                        case "7":
+                            System.out.println(FrDev.showInfo(allDevices));
+
+                            break;
                         default:
                             System.out.println("请输入正确的数字！");
                     }
@@ -426,9 +457,7 @@ public class FrUi{
                     continue2_=true;
                     while (continue2_){ 
                         boolean continue2_1=true;
-                        boolean continue2_2=true;
-                        boolean continue2_3=true;
-                        boolean continue2_4=true;
+                        
                         sc.nextLine();//吃掉换行符，学以致用
                         System.out.println("请输入你要执行的操作");
                         System.out.println("1.数据采集");

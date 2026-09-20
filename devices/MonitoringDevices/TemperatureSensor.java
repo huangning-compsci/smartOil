@@ -1,6 +1,8 @@
-package devices;
+package devices.MonitoringDevices;
 
-public class TemperatureSensor extends Equipment{
+import devices.DeviceArray;
+
+public class TemperatureSensor extends MonitoringEquipment{
     private double tempRange;
     private String accuracy;
     private double currentTemp;

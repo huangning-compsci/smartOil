@@ -1,11 +1,11 @@
 import java.util.Scanner;
-import devices.CentrifugalPump;
-import devices.Compressor;
+import devices.FluidTransportDevices.CentrifugalPump;
+import devices.FluidTransportDevices.Compressor;
 import devices.DeviceArray;
-import devices.FlowMeter;
-import devices.PressureSensor;
-import devices.PumpingUnit;
-import devices.TemperatureSensor;
+import devices.MonitoringDevices.FlowMeter;
+import devices.MonitoringDevices.PressureSensor;
+import devices.ProductionDevices.PumpingUnit;
+import devices.MonitoringDevices.TemperatureSensor;
 import devices.Equipment;
 
 
@@ -25,27 +25,43 @@ public class FrDev{
         
     }
 
-    static boolean showInfo(Equipment device){
-        if(device==null){
-            return false;
-        }
+    static String showInfo(Equipment... devices){
         String[] headers={"设备id","安装日期","目前状态","设备型号","所处井场"};
-        String[] values={device.getId(),device.getInstallDate(),device.getStatus(),
-            device.getModel(),device.getWellsite()};
-        StringBuilder headerRow=new StringBuilder();
-        StringBuilder valueRow=new StringBuilder();
+        String[][] rows=new String[devices.length][];
+        int[] widths=new int[headers.length];
         for(int i=0;i<headers.length;i++){
-            String value=String.valueOf(values[i]);
-            int headerWidth=displayWidth(headers[i]);
-            int valueWidth=displayWidth(value);
-            int width=Math.max(headerWidth,valueWidth)+4;
-            headerRow.append(headers[i]).append(" ".repeat(width-headerWidth));
-            valueRow.append(value).append(" ".repeat(width-valueWidth));
+            widths[i]=displayWidth(headers[i]);
         }
-        System.out.println(headerRow.toString().stripTrailing());
-        System.out.println(valueRow.toString().stripTrailing());
-        return true;
+        int rowCount=0;
+        for(Equipment device:devices){
+            if(device==null){
+                continue;
+            }
+            String[] values={device.getId(),device.getInstallDate(),device.getStatus(),
+                device.getModel(),device.getWellsite()};
+            for(int i=0;i<values.length;i++){
+                values[i]=String.valueOf(values[i]);
+                widths[i]=Math.max(widths[i],displayWidth(values[i]));
+            }
+            rows[rowCount++]=values;
         }
+        if(rowCount==0){
+            return "";
+        }
+        StringBuilder headerRow=new StringBuilder();
+        for(int i=0;i<headers.length;i++){
+            headerRow.append(headers[i]).append(" ".repeat(widths[i]+4-displayWidth(headers[i])));
+        }
+        StringBuilder table=new StringBuilder(headerRow.toString().stripTrailing());
+        for(int r=0;r<rowCount;r++){
+            StringBuilder valueRow=new StringBuilder();
+            for(int i=0;i<headers.length;i++){
+                valueRow.append(rows[r][i]).append(" ".repeat(widths[i]+4-displayWidth(rows[r][i])));
+            }
+            table.append(System.lineSeparator()).append(valueRow.toString().stripTrailing());
+        }
+        return table.toString();
+    }
 
     // 等宽终端中，中文汉字和常用全角字符占两格，其余字符占一格。
     private static int displayWidth(String text){
@@ -55,6 +71,7 @@ public class FrDev{
             || (c>=0xFF01 && c<=0xFF60)
             || (c>=0xFFE0 && c<=0xFFE6) ? 2 : 1).sum();
     }
+
     //id查询功能
     static Equipment findById(String id){
         if (id==null){
@@ -107,10 +124,6 @@ public class FrDev{
             System.out.println("未找到设备：" + id);
             return false;
         }
-
-        // 显示设备详细信息
-        System.out.println("找到设备：");
-        showInfo(device);
 
         // 确认删除
         System.out.print("确定要删除该设备吗？(y/n)：");

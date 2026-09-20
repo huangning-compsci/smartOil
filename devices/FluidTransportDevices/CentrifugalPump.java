@@ -1,6 +1,8 @@
-package devices;
+package devices.FluidTransportDevices;
 
-public class CentrifugalPump extends Equipment {
+import devices.DeviceArray;
+
+public class CentrifugalPump extends FluidTransportEquipment {
     private double ratedFlow;
     private double ratedHead;
     private double inletPressure;
@@ -40,6 +42,10 @@ public class CentrifugalPump extends Equipment {
         return DEVICES;
     }
 
+    
+    
+    
+    
     public double getRatedFlow(){
         return ratedFlow;
     }

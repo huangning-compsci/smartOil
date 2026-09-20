@@ -1,6 +1,8 @@
-package devices;
+package devices.MonitoringDevices;
 
-public class FlowMeter extends Equipment{
+import devices.DeviceArray;
+
+public class FlowMeter extends MonitoringEquipment{
     private double flowRange;
     private String accuracy;
     private double currentFlow;
