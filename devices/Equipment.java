@@ -71,7 +71,7 @@ public abstract class Equipment {
         this.e_Status=status;
     }
 
-    public abstract void collectData();
+    public abstract boolean collectData();
     public abstract boolean checkAlarm();
 
     

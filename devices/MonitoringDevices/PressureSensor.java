@@ -81,8 +81,8 @@ public class PressureSensor extends MonitoringEquipment{
         this.lowerLimit=lowerLimit;
     }
     @Override 
-    public void collectData(){
-        
+    public boolean collectData(){
+        return false;
     } 
     public boolean checkAlarm(){
         return true;

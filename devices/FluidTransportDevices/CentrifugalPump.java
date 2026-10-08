@@ -79,7 +79,7 @@ public class CentrifugalPump extends FluidTransportEquipment {
     }
 
     @Override //抽象方法
-    public void collectData(){
+    public boolean collectData(){
         inletPressure=(((int)Math.random()*21)+10)/100.0;
         double k;
         if(Math.random()<0.8){
@@ -89,6 +89,7 @@ public class CentrifugalPump extends FluidTransportEquipment {
             k=((int)Math.random()*30+50)/100.0;
         }
         outletPressure=inletPressure+k*1.176798;
+        return true;
     }
 
     public boolean checkAlarm(){

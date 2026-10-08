@@ -73,8 +73,9 @@ public class FlowMeter extends MonitoringEquipment{
     }
 
     @Override //抽象方法
-    public void collectData(){
+    public boolean collectData(){
         currentFlow=((int)Math.random()*500+100)/100.0;
+        return true;
     }
     public boolean checkAlarm(){
         if(currentFlow<1.50||currentFlow>4.50){

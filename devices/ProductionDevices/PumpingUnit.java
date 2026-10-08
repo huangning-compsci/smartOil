@@ -50,12 +50,12 @@ public  class  PumpingUnit extends  ProductionEquipment {
     }
 
     @Override 
-    public void collectData(){
+    public boolean collectData(){
         if(getStatus().equals("尚未启动")){
             System.out.println("设备未启动");
-            //还没写完,全部改成boolean
+            //还没写完
         }
-        
+        return false;
     }
 
     public boolean checkAlarm(){

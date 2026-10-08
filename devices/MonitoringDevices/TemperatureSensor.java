@@ -73,8 +73,8 @@ public class TemperatureSensor extends MonitoringEquipment{
     }
 
     @Override 
-    public void collectData(){
-        
+    public boolean collectData(){
+        return false;
     } 
     public boolean checkAlarm(){
         return true;

@@ -33,6 +33,7 @@ public class RunTimer {
         if(running){
             time+=System.nanoTime()-startTime;
             startTime=System.nanoTime();
+            System.out.println("已重置开启时间");
         }
         return time/1_000_000_000;
     }

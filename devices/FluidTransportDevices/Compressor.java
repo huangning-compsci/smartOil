@@ -63,9 +63,10 @@ public class Compressor extends FluidTransportEquipment{
     }
 
     @Override //抽象方法
-    public void collectData(){
+    public boolean collectData(){
         exhaustPressure=((int)Math.random()*160+600)/100.0;
         exhaustFlow=((int)Math.random()*84+250)/100.0;
+        return true;
     }
     public boolean checkAlarm(){
         if(exhaustPressure<6.5||exhaustPressure>8){
