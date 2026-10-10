@@ -1,17 +1,20 @@
 package devices;
 
+import exceptions.AlarmException;
+import exceptions.DeviceNotRunningException;
+
 public abstract class Equipment {
     private final String e_ID;
     private final String e_type;
     private String e_model;
     private String e_wellsite;
-    private String e_Install_date;
+    private String e_Install_date;   //安装日期格式规定
     private final String e_parameter;
-    private String e_Status; 
+    private String e_Status;
       
     public Equipment(){
         this("", "", "", "", "", "");
-    }
+    } //调用本类中的有参构造方法
 
     protected Equipment(
         String e_ID,
@@ -71,8 +74,9 @@ public abstract class Equipment {
         this.e_Status=status;
     }
 
-    public abstract boolean collectData();
-    public abstract boolean checkAlarm();
+    public abstract void collectData() throws DeviceNotRunningException;
+    public abstract boolean checkAlarm() throws AlarmException;
+
 
     
 
