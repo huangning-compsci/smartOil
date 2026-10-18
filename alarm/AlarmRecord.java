@@ -2,6 +2,7 @@ package alarm;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.atomic.AtomicInteger; // M5 新增
 
 import exceptions.AlarmException;
 
@@ -35,8 +36,10 @@ public class AlarmRecord {
     private static final DateTimeFormatter FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    /** 报警编号自增序号（内存计数，程序重启后归零）。 */
-    private static int seq;
+    /** 
+     * M5 考点：多线程下保证编号原子自增，避免数据竞争。
+     */
+    private static final AtomicInteger seq = new AtomicInteger(0);
 
     private final String alarmId;             // 报警编号
     private final String deviceId;            // 设备编号
@@ -62,7 +65,7 @@ public class AlarmRecord {
     /** 工厂方法：从捕获到的报警异常自动生成一条记录。 */
     public static AlarmRecord from(AlarmException e) {
         return new AlarmRecord(
-                "ALM_" + (++seq),
+                "ALM_" + seq.incrementAndGet(),
                 e.getDeviceId(),
                 typeOf(e.getDeviceId()),
                 e.getLevel(),
@@ -70,10 +73,6 @@ public class AlarmRecord {
                 LocalDateTime.now());
     }
 
-    /**
-     * 按设备 id 前缀推断报警类型。
-     * 与 FrDev.findById 的前缀路由是同一套约定（PU/CP/PS/TS/FM/CM）。
-     */
     private static String typeOf(String deviceId) {
         if (deviceId == null || !deviceId.contains("_")) {
             return "未知类型";
@@ -89,39 +88,27 @@ public class AlarmRecord {
         };
     }
 
-    /** FR-ALM-04：确认报警。仅"未确认"状态可确认，确认后变为"已确认"。 */
     public boolean confirm() {
-        if (status != Status.UNCONFIRMED) {
-            return false;
-        }
+        if (status != Status.UNCONFIRMED) return false;
         status = Status.CONFIRMED;
         return true;
     }
 
-    /** FR-ALM-04：标记为"已处理"。需先确认，且处理说明不能为空。 */
     public boolean handle(String note) {
-        if (status != Status.CONFIRMED || note == null || note.isBlank()) {
-            return false;
-        }
+        if (status != Status.CONFIRMED || note == null || note.isBlank()) return false;
         status = Status.HANDLED;
         this.handleNote = note.trim();
         return true;
     }
 
-    /** FR-ALM-04：忽略误报。忽略原因不能为空；已终结（已处理/已忽略）的记录不可再操作。 */
     public boolean ignore(String reason) {
-        if (status == Status.HANDLED || status == Status.IGNORED) {
-            return false;
-        }
-        if (reason == null || reason.isBlank()) {
-            return false;
-        }
+        if (status == Status.HANDLED || status == Status.IGNORED) return false;
+        if (reason == null || reason.isBlank()) return false;
         status = Status.IGNORED;
         this.ignoreReason = reason.trim();
         return true;
     }
 
-    /** 单条记录的完整详情（报警确认与处理界面用）。 */
     public String toDetailString() {
         StringBuilder sb = new StringBuilder();
         sb.append("报警编号：").append(alarmId).append('\n');
@@ -131,30 +118,20 @@ public class AlarmRecord {
         sb.append("报警描述：").append(description).append('\n');
         sb.append("报警时间：").append(getAlarmTime()).append('\n');
         sb.append("报警状态：").append(status.getLabel());
-        if (handleNote != null) {
-            sb.append("\n处理说明：").append(handleNote);
-        }
-        if (ignoreReason != null) {
-            sb.append("\n忽略原因：").append(ignoreReason);
-        }
+        if (handleNote != null) sb.append("\n处理说明：").append(handleNote);
+        if (ignoreReason != null) sb.append("\n忽略原因：").append(ignoreReason);
         return sb.toString();
     }
 
     public String getAlarmId() { return alarmId; }
     public String getDeviceId() { return deviceId; }
     public String getType() { return type; }
-    /** 等级中文标签（表格展示用）。 */
     public String getLevel() { return level.getLabel(); }
-    /** 等级枚举（筛选比较用）。 */
     public AlarmException.Level getLevelEnum() { return level; }
     public String getDescription() { return description; }
-    /** 格式化后的报警时间（表格展示用）。 */
     public String getAlarmTime() { return alarmTime.format(FMT); }
-    /** 原始时间（时间范围查询、倒序排序用）。 */
     public LocalDateTime getTime() { return alarmTime; }
-    /** 状态中文标签（表格展示用）。 */
     public String getStatus() { return status.getLabel(); }
-    /** 状态枚举（筛选比较用）。 */
     public Status getStatusEnum() { return status; }
     public String getHandleNote() { return handleNote; }
     public String getIgnoreReason() { return ignoreReason; }
