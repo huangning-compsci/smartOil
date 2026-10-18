@@ -760,7 +760,7 @@ public class FrUi {
                     System.out.println("3.忽略误报（填写忽略原因）");
                     System.out.println("其他键.取消");
                     System.out.println("请输入您的选择：");
-                    switch (sc.next()) {
+                    switch (sc.nextLine().trim()) {
                         case "1":
                             if (rec.confirm()) {
                                 System.out.println("报警 " + handleId + " 已确认");
@@ -774,7 +774,6 @@ public class FrUi {
                             }
                             break;
                         case "2": {
-                            sc.nextLine();
                             System.out.println("请输入处理说明：");
                             String note = sc.nextLine().trim();
                             System.out.println(rec.handle(note)
@@ -783,7 +782,6 @@ public class FrUi {
                             break;
                         }
                         case "3": {
-                            sc.nextLine();
                             System.out.println("请输入忽略原因：");
                             String reason = sc.nextLine().trim();
                             System.out.println(rec.ignore(reason)
@@ -796,9 +794,7 @@ public class FrUi {
                             break;
                     }
                 }
-                System.out.println("按任意键继续");
-                sc.next();
-                sc.nextLine();
+                waitForEnter(sc);
                 break;
             }
             case "5":
