@@ -67,7 +67,7 @@ public class PressureSensor extends MonitoringEquipment
      */
     @Override
     public void collectData() throws DeviceNotRunningException {
-        if ("尚未启动".equals(getStatus())) {
+        if (!isRunning()) {
             throw new DeviceNotRunningException(getId(), "压力采集");
         }
         double base = pressureRange * Math.random();

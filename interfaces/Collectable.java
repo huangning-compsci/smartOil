@@ -17,7 +17,7 @@ public interface Collectable {
 
     /**
      * 采集一次数据并写入设备自身的当前值字段。
-     * @throws DeviceNotRunningException 设备未启动时抛出
+     * @throws DeviceNotRunningException 设备不处于投运中状态时抛出
      */
     void collectData() throws DeviceNotRunningException;
 
@@ -48,7 +48,7 @@ public interface Collectable {
     static void collectAll(Collectable... devices) {
         printTable(true, devices);
     }
-
+    //TODO:学习codex是如何实现文字台账的
     private static void printTable(boolean collect, Collectable... devices) {
         String[] headers = {"设备编号", "设备类型", "井场", "运行状态", "关键采集数据", "采集时间", collect ? "采集结果" : "数据状态"};
         java.util.List<String[]> rows = new java.util.ArrayList<>();

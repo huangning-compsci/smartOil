@@ -75,7 +75,7 @@ public class PumpingUnit extends ProductionEquipment
      */
     @Override
     public void collectData() throws DeviceNotRunningException {
-        if ("尚未启动".equals(getStatus())) {
+        if (!isRunning()) {
             throw new DeviceNotRunningException(getId(), "载荷采集");
         }
         double ratio = 0.6 + 0.5 * Math.random();          // 0.6~1.1 正常区间

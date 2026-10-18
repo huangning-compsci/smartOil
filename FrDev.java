@@ -24,6 +24,35 @@ public class FrDev {
         target.store(device);
     }
 
+    /** 一键新增 20 台预设设备，容量不足时停止并抛出异常。 */
+    static void add20Devices() throws DeviceArrayFullException {
+        add(PumpingUnit.getDevices(), new PumpingUnit("01", "2026-01-10", "CYJ10-3-53HB"));
+        add(PumpingUnit.getDevices(), new PumpingUnit("02", "2026-01-12", "CYJ12-4.8-73HB"));
+        add(PumpingUnit.getDevices(), new PumpingUnit("03", "2026-01-15", "CYJ14-5-89HB"));
+        add(PumpingUnit.getDevices(), new PumpingUnit("04", "2026-01-18", "CYJ16-6-109HB"));
+
+        add(CentrifugalPump.getDevices(), new CentrifugalPump("01", "2026-02-01", "IS50-32-125"));
+        add(CentrifugalPump.getDevices(), new CentrifugalPump("02", "2026-02-03", "IS65-50-160"));
+        add(CentrifugalPump.getDevices(), new CentrifugalPump("03", "2026-02-05", "IS80-65-200"));
+        add(CentrifugalPump.getDevices(), new CentrifugalPump("04", "2026-02-07", "IS100-80-250"));
+
+        add(PressureSensor.getDevices(), new PressureSensor("01", "2026-03-01", "PT-100"));
+        add(PressureSensor.getDevices(), new PressureSensor("02", "2026-03-03", "PT-200"));
+        add(PressureSensor.getDevices(), new PressureSensor("03", "2026-03-05", "PT-300"));
+
+        add(TemperatureSensor.getDevices(), new TemperatureSensor("01", "2026-03-10", "WZP-230"));
+        add(TemperatureSensor.getDevices(), new TemperatureSensor("02", "2026-03-12", "WZP-231"));
+        add(TemperatureSensor.getDevices(), new TemperatureSensor("03", "2026-03-15", "WZP-240"));
+
+        add(FlowMeter.getDevices(), new FlowMeter("01", "2026-04-01", "LWGY-25"));
+        add(FlowMeter.getDevices(), new FlowMeter("02", "2026-04-03", "LWGY-50"));
+        add(FlowMeter.getDevices(), new FlowMeter("03", "2026-04-05", "LWGY-80"));
+
+        add(Compressor.getDevices(), new Compressor("01", "2026-04-10", "LG-3.6/8"));
+        add(Compressor.getDevices(), new Compressor("02", "2026-04-12", "LG-6/8"));
+        add(Compressor.getDevices(), new Compressor("03", "2026-04-15", "LG-10/8"));
+    }
+
     /**
      * 生成设备信息表格（支持一次传多台设备）。
      * 注意：返回 String，调用方负责打印 —— System.out.println(FrDev.showInfo(device));
@@ -181,5 +210,49 @@ public class FrDev {
             device.setStatus(newStatus);
         }
         return true;
+    }
+
+    static Equipment[] findByType(String type) {
+        return devices.DeviceFilter.filter(allDevices(), devices.DeviceFilter.byType(type));
+    }
+
+    static Equipment[] findByStatus(String status) {
+        return devices.DeviceFilter.filter(allDevices(), e -> e.getStatus().equals(status));
+    }
+
+    /** 模糊匹配编号、型号或井场；关键字不能为空。 */
+    static Equipment[] fuzzyFind(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            throw new IllegalArgumentException("关键字不能为空");
+        }
+        String key = keyword.trim().toLowerCase(java.util.Locale.ROOT);
+        return devices.DeviceFilter.filter(allDevices(), e ->
+                containsIgnoreCase(e.getId(), key)
+                || containsIgnoreCase(e.getModel(), key)
+                || containsIgnoreCase(e.getWellsite(), key));
+    }
+
+    private static boolean containsIgnoreCase(String value, String key) {
+        return value != null && value.toLowerCase(java.util.Locale.ROOT).contains(key);
+    }
+
+    public static Equipment[] allDevices() {
+        java.util.List<Equipment> list = new java.util.ArrayList<>();
+        devices.DeviceArray<?>[] pools = {
+                PumpingUnit.getDevices(), CentrifugalPump.getDevices(),
+                PressureSensor.getDevices(), TemperatureSensor.getDevices(),
+                FlowMeter.getDevices(), Compressor.getDevices()
+        };
+        for (devices.DeviceArray<?> pool : pools) {
+            for (int i = 0; i < pool.size(); i++) {
+                Equipment e = pool.getOrNull(i);
+                if (e != null) {
+                    list.add(e);
+                }
+            }
+        }
+        
+        return list.toArray(new Equipment[0]);
+        
     }
 }

@@ -57,7 +57,7 @@ public class TemperatureSensor extends MonitoringEquipment
     /** FR-MON-01 模拟数据采集：常温附近随机波动，约 10% 概率超温。 */
     @Override
     public void collectData() throws DeviceNotRunningException {
-        if ("尚未启动".equals(getStatus())) {
+        if (!isRunning()) {
             throw new DeviceNotRunningException(getId(), "温度采集");
         }
         double base = 20 + tempRange * 0.5 * Math.random();   // 20~70 ℃ 正常区间

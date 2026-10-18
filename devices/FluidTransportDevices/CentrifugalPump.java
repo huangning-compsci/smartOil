@@ -74,7 +74,7 @@ public class CentrifugalPump extends FluidTransportEquipment
      */
     @Override
     public void collectData() throws DeviceNotRunningException {
-        if ("尚未启动".equals(getStatus())) {
+        if (!isRunning()) {
             throw new DeviceNotRunningException(getId(), "泵压采集");
         }
         this.inletPressure = (int) (Math.random() * 21 + 10) / 100.0;   // 0.10~0.30 MPa

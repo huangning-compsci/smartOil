@@ -38,12 +38,29 @@ public class FrMon {
         return list.toArray(new Collectable[0]);
     }
 
-    /** 批量采集，未启动的设备由接口调度方法跳过并提示。 */
+    /** 批量采集，非投运设备由接口调度方法跳过并提示。 */
     public static void collectAll(Equipment... devices) {
         Collectable.collectAll(allCollectables(devices));
     }
     /** 全部设备的简明实时台账，只查看，不采集。 */
     public static void showAll(Equipment... devices) {
         Collectable.showAll(allCollectables(devices));
+    }
+    //一键启动设备功能,不然根本无法采集
+    public static void turnOnAll(Equipment... devices) {
+        for(Equipment x:devices){
+            if(x != null && "尚未启动".equals(x.getStatus())){
+                x.setStatus("投运中");
+            }
+        }
+    }
+
+    //一键设置设备为"尚未启动"
+    public static void turnOffAll(Equipment... devices){
+        for(Equipment x:devices){
+            if(x != null && x.isRunning()){
+                x.setStatus("尚未启动");
+            }
+        }
     }
 }

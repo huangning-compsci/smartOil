@@ -54,6 +54,11 @@ public abstract class Equipment {
         return e_Status;
     }
 
+    /** 只有投运中的设备允许执行新一轮采集。 */
+    public boolean isRunning() {
+        return "投运中".equals(e_Status);
+    }
+
     public String getModel(){
         return e_model;
     }

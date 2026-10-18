@@ -67,7 +67,7 @@ public class Compressor extends FluidTransportEquipment
      */
     @Override
     public void collectData() throws DeviceNotRunningException {
-        if ("尚未启动".equals(getStatus())) {
+        if (!isRunning()) {
             throw new DeviceNotRunningException(getId(), "排气参数采集");
         }
         if (Math.random() < 0.75) {

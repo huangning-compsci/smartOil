@@ -59,7 +59,7 @@ public class FlowMeter extends MonitoringEquipment
     /** FR-MON-01 模拟数据采集：瞬时流量 1.00~6.00，并累加总流量。 */
     @Override
     public void collectData() throws DeviceNotRunningException {
-        if ("尚未启动".equals(getStatus())) {
+        if (!isRunning()) {
             throw new DeviceNotRunningException(getId(), "流量采集");
         }
         this.currentFlow = (int) (Math.random() * 500 + 100) / 100.0;

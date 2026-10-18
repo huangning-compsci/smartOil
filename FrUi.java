@@ -17,6 +17,156 @@ import java.time.LocalDateTime;
 import java.util.Scanner;
 
 public class FrUi {
+    private static final String[] DEVICE_STATUSES = {"尚未启动", "投运中", "故障", "维修中", "停用"};
+
+    private static String chooseDeviceStatus(Scanner sc, boolean allowSkip) {
+        System.out.println("请选择设备状态：");
+        for (int i = 0; i < DEVICE_STATUSES.length; i++) {
+            System.out.println((i + 1) + "." + DEVICE_STATUSES[i]);
+        }
+        if (allowSkip) System.out.println("0.不修改（回车也可跳过）");
+        while (true) {
+            String choice = sc.nextLine().trim();
+            if (allowSkip && (choice.isEmpty() || "0".equals(choice))) return "";
+            if (choice.matches("[1-5]")) return DEVICE_STATUSES[Integer.parseInt(choice) - 1];
+            System.out.println("请输入有效的状态编号！");
+        }
+    }
+
+    private static void showResults(Scanner sc, Equipment[] results) {
+        if (results.length == 0) System.out.println("没有符合条件的设备");
+        else {
+            System.out.println("共找到 " + results.length + " 台设备：");
+            System.out.println(FrDev.showInfo(results));
+        }
+        waitForEnter(sc);
+    }
+
+    private static void waitForEnter(Scanner sc) {
+        System.out.println("按回车返回");
+        sc.nextLine();
+    }
+
+    private static void queryDevices(Scanner sc) {
+        System.out.println("1.按编号查询\n2.按类型查询\n3.按状态查询\n4.模糊查询（id/型号/井场）");
+        String choice = sc.nextLine().trim();
+        try {
+            Equipment[] result;
+            switch (choice) {
+                case "1":
+                    System.out.println("请输入设备id,例如 PU_1:");
+                    result = new Equipment[]{FrDev.findById(sc.nextLine().trim())};
+                    break;
+                case "2":
+                    System.out.println("请输入设备类型（PU/CP/PS/TS/FM/CM、英文类型名或中文名）：");
+                    result = FrDev.findByType(sc.nextLine().trim());
+                    break;
+                case "3":
+                    result = FrDev.findByStatus(chooseDeviceStatus(sc, false));
+                    break;
+                case "4":
+                    System.out.println("请输入关键字（id/型号/井场）：");
+                    result = FrDev.fuzzyFind(sc.nextLine());
+                    break;
+                default:
+                    System.out.println("请输入正确的数字！");
+                    return;
+            }
+            showResults(sc, result);
+        } catch (InvalidDeviceIdException | DeviceNotFoundException | IllegalArgumentException e) {
+            System.out.println(e.getMessage());
+            waitForEnter(sc);
+        }
+    }
+
+    private static void sortDevices(Scanner sc) {
+        System.out.println("1.按设备编号排序\n2.按运行状态排序\n3.按安装日期排序");
+        java.util.Comparator<Equipment> comparator = switch (sc.nextLine().trim()) {
+            case "1" -> devices.DeviceSort.BY_ID;
+            case "2" -> devices.DeviceSort.BY_STATUS;
+            case "3" -> devices.DeviceSort.BY_INSTALL_DATE;
+            default -> null;
+        };
+        if (comparator == null) {
+            System.out.println("请输入正确的数字！");
+            return;
+        }
+        System.out.println("1.升序  2.降序");
+        String direction = sc.nextLine().trim();
+        while (!"1".equals(direction) && !"2".equals(direction)) {
+            System.out.println("请输入 1 或 2！");
+            direction = sc.nextLine().trim();
+        }
+        showResults(sc, devices.DeviceSort.sorted(FrDev.allDevices(), comparator, "1".equals(direction)));
+    }
+
+    private static void filterDevices(Scanner sc) {
+        System.out.println("1.筛选运行中设备\n2.筛选故障设备\n3.按设备类型筛选");
+        String choice = sc.nextLine().trim();
+        Equipment[] result;
+        switch (choice) {
+            case "1": result = FrDev.findByStatus("投运中"); break;
+            case "2": result = FrDev.findByStatus("故障"); break;
+            case "3":
+                System.out.println("请输入设备类型：");
+                result = FrDev.findByType(sc.nextLine().trim());
+                break;
+            default:
+                System.out.println("请输入正确的数字！");
+                return;
+        }
+        showResults(sc, result);
+    }
+
+    private interface AddAction {  
+        void accept(String wellsite, String installDate, String model) throws DeviceArrayFullException;
+    }
+
+    private static void addBatch(Scanner sc, String typeName, AddAction action) {
+        int added = 0;
+        String previousDate = null;
+        while (true) {
+            System.out.println("----- 录入第 " + (added + 1) + " 台" + typeName + " -----");
+            String wellsite;
+            do {
+                System.out.println("请输入所属井场：(参考格式:01)");
+                wellsite = sc.nextLine().trim();
+                if (!wellsite.matches("\\d{2}")) System.out.println("格式错误！请按 xx 格式输入");
+            } while (!wellsite.matches("\\d{2}"));
+            String date;
+            while (true) {
+                System.out.println("请输入安装时间：(参考格式:xxxx-xx-xx)"
+                        + (previousDate == null ? "" : "，回车沿用 " + previousDate));
+                date = sc.nextLine().trim();
+                if (date.isEmpty() && previousDate != null) date = previousDate;
+                if (date.matches("\\d{4}-\\d{2}-\\d{2}")) break;
+                System.out.println("格式错误！请按 xxxx-xx-xx 格式输入");
+            }
+            String model;
+            do {
+                System.out.println("请输入型号：");
+                model = sc.nextLine().trim();
+            } while (model.isEmpty());
+            try {
+                action.accept(wellsite, date, model);
+                previousDate = date;
+                added++;
+                System.out.println("添加成功（本次已添加 " + added + " 台" + typeName + "）");
+            } catch (DeviceArrayFullException e) {
+                System.out.println(e.getMessage() + "，无法继续添加");
+                break;
+            }
+            System.out.println("是否继续添加" + typeName + "？(y/n)");
+            String choice = sc.nextLine().trim();
+            while (!"y".equalsIgnoreCase(choice) && !"n".equalsIgnoreCase(choice)) {
+                System.out.println("请输入 y 或 n：");
+                choice = sc.nextLine().trim();
+            }
+            if ("n".equalsIgnoreCase(choice)) break;
+        }
+        System.out.println("本次共添加 " + added + " 台" + typeName);
+    }
+
     public static void main(String[] args){
         System.out.println("=".repeat(30));
         System.out.println("SmartOil 油气井管理系统 v1.0");
@@ -57,6 +207,9 @@ public class FrUi {
                 System.out.println("5.退出");
                 System.out.println("6.返回上一级菜单");
                 System.out.println("7.查看设备台账");
+                System.out.println("8.排序查看");
+                System.out.println("9.筛选查看");
+                System.out.println("0.测试:一键新增20个设备(请勿重复使用)");
 
                 System.out.println("=".repeat(30));
 
@@ -85,39 +238,8 @@ public class FrUi {
                             case "抽油几":
                             case "抽油机":{
                                 sc.nextLine();
-                                String wellsite;
-                                do {
-                                    System.out.println("请输入所属井场：(参考格式:01)");
-                                    wellsite = sc.nextLine().trim();
-                                    if(!wellsite.matches("\\d{2}")){
-                                        System.out.println("格式错误！请按 xx 格式输入");
-                                    }
-                                } while (!wellsite.matches("\\d{2}"));
-
-                                String installDate;
-                                do {
-                                    System.out.println("请输入安装时间：(参考格式:xxxx-xx-xx)");
-                                    installDate = sc.nextLine().trim();
-                                    if(!installDate.matches("\\d{4}-\\d{2}-\\d{2}")){
-                                        System.out.println("格式错误！请按 xxxx-xx-xx 格式输入");
-                                    }
-                                } while (!installDate.matches("\\d{4}-\\d{2}-\\d{2}"));
-
-                                String model;
-                                do {
-                                    System.out.println("请输入型号：");
-                                    model = sc.nextLine().trim();
-                                } while (model.isEmpty());
-
-                                PumpingUnit device = new PumpingUnit(wellsite, installDate, model);
-                                try {
-                                    FrDev.add(PumpingUnit.getDevices(), device);
-                                    System.out.println();
-                                    System.out.println("添加成功");
-                                } catch (DeviceArrayFullException e) {
-                                    System.out.println();
-                                    System.out.println(e.getMessage());
-                                }
+                                addBatch(sc, "抽油机", (wellsite, date, model) ->
+                                        FrDev.add(PumpingUnit.getDevices(), new PumpingUnit(wellsite, date, model)));
                                 continue1_1=false;
                                 break;
                             }
@@ -128,39 +250,8 @@ public class FrUi {
                             case "离心磅":
                             case "离心泵":{
                                 sc.nextLine();
-                                String wellsite;
-                                do {
-                                    System.out.println("请输入所属井场：(参考格式:01)");
-                                    wellsite = sc.nextLine().trim();
-                                    if(!wellsite.matches("\\d{2}")){
-                                        System.out.println("格式错误！请按 xx 格式输入");
-                                    }
-                                } while (!wellsite.matches("\\d{2}"));
-
-                                String installDate;
-                                do {
-                                    System.out.println("请输入安装时间：(参考格式:xxxx-xx-xx)");
-                                    installDate = sc.nextLine().trim();
-                                    if(!installDate.matches("\\d{4}-\\d{2}-\\d{2}")){
-                                        System.out.println("格式错误！请按 xxxx-xx-xx 格式输入");
-                                    }
-                                } while (!installDate.matches("\\d{4}-\\d{2}-\\d{2}"));
-
-                                String model;
-                                do {
-                                    System.out.println("请输入型号：");
-                                    model = sc.nextLine().trim();
-                                } while (model.isEmpty());
-
-                                CentrifugalPump device = new CentrifugalPump(wellsite, installDate, model);
-                                try {
-                                    FrDev.add(CentrifugalPump.getDevices(), device);
-                                    System.out.println();
-                                    System.out.println("添加成功");
-                                } catch (DeviceArrayFullException e) {
-                                    System.out.println();
-                                    System.out.println(e.getMessage());
-                                }
+                                addBatch(sc, "离心泵", (wellsite, date, model) ->
+                                        FrDev.add(CentrifugalPump.getDevices(), new CentrifugalPump(wellsite, date, model)));
                                 continue1_1=false;
                                 break;
                             }
@@ -171,39 +262,8 @@ public class FrUi {
                             case "压力传感":
                             case "压力传感器":{
                                 sc.nextLine();
-                                String wellsite;
-                                do {
-                                    System.out.println("请输入所属井场：(参考格式:01)");
-                                    wellsite = sc.nextLine().trim();
-                                    if(!wellsite.matches("\\d{2}")){
-                                        System.out.println("格式错误！请按 xx 格式输入");
-                                    }
-                                } while (!wellsite.matches("\\d{2}"));
-
-                                String installDate;
-                                do {
-                                    System.out.println("请输入安装时间：(参考格式:xxxx-xx-xx)");
-                                    installDate = sc.nextLine().trim();
-                                    if(!installDate.matches("\\d{4}-\\d{2}-\\d{2}")){
-                                        System.out.println("格式错误！请按 xxxx-xx-xx 格式输入");
-                                    }
-                                } while (!installDate.matches("\\d{4}-\\d{2}-\\d{2}"));
-
-                                String model;
-                                do {
-                                    System.out.println("请输入型号：");
-                                    model = sc.nextLine().trim();
-                                } while (model.isEmpty());
-
-                                PressureSensor device = new PressureSensor(wellsite, installDate, model);
-                                try {
-                                    FrDev.add(PressureSensor.getDevices(), device);
-                                    System.out.println();
-                                    System.out.println("添加成功");
-                                } catch (DeviceArrayFullException e) {
-                                    System.out.println();
-                                    System.out.println(e.getMessage());
-                                }
+                                addBatch(sc, "压力传感器", (wellsite, date, model) ->
+                                        FrDev.add(PressureSensor.getDevices(), new PressureSensor(wellsite, date, model)));
                                 continue1_1=false;
                                 break;
                             }
@@ -214,39 +274,8 @@ public class FrUi {
                             case "温度传感":
                             case "温度传感器":{
                                 sc.nextLine();
-                                String wellsite;
-                                do {
-                                    System.out.println("请输入所属井场：(参考格式:01)");
-                                    wellsite = sc.nextLine().trim();
-                                    if(!wellsite.matches("\\d{2}")){
-                                        System.out.println("格式错误！请按 xx 格式输入");
-                                    }
-                                } while (!wellsite.matches("\\d{2}"));
-
-                                String installDate;
-                                do {
-                                    System.out.println("请输入安装时间：(参考格式:xxxx-xx-xx)");
-                                    installDate = sc.nextLine().trim();
-                                    if(!installDate.matches("\\d{4}-\\d{2}-\\d{2}")){
-                                        System.out.println("格式错误！请按 xxxx-xx-xx 格式输入");
-                                    }
-                                } while (!installDate.matches("\\d{4}-\\d{2}-\\d{2}"));
-
-                                String model;
-                                do {
-                                    System.out.println("请输入型号：");
-                                    model = sc.nextLine().trim();
-                                } while (model.isEmpty());
-
-                                TemperatureSensor device = new TemperatureSensor(wellsite, installDate, model);
-                                try {
-                                    FrDev.add(TemperatureSensor.getDevices(), device);
-                                    System.out.println();
-                                    System.out.println("添加成功");
-                                } catch (DeviceArrayFullException e) {
-                                    System.out.println();
-                                    System.out.println(e.getMessage());
-                                }
+                                addBatch(sc, "温度传感器", (wellsite, date, model) ->
+                                        FrDev.add(TemperatureSensor.getDevices(), new TemperatureSensor(wellsite, date, model)));
                                 continue1_1=false;
                                 break;
                             }
@@ -257,39 +286,8 @@ public class FrUi {
                             case "流量记":
                             case "流量计":{
                                 sc.nextLine();
-                                String wellsite;
-                                do {
-                                    System.out.println("请输入所属井场：(参考格式:01)");
-                                    wellsite = sc.nextLine().trim();
-                                    if(!wellsite.matches("\\d{2}")){
-                                        System.out.println("格式错误！请按 xx 格式输入");
-                                    }
-                                } while (!wellsite.matches("\\d{2}"));
-
-                                String installDate;
-                                do {
-                                    System.out.println("请输入安装时间：(参考格式:xxxx-xx-xx)");
-                                    installDate = sc.nextLine().trim();
-                                    if(!installDate.matches("\\d{4}-\\d{2}-\\d{2}")){
-                                        System.out.println("格式错误！请按 xxxx-xx-xx 格式输入");
-                                    }
-                                } while (!installDate.matches("\\d{4}-\\d{2}-\\d{2}"));
-
-                                String model;
-                                do {
-                                    System.out.println("请输入型号：");
-                                    model = sc.nextLine().trim();
-                                } while (model.isEmpty());
-
-                                FlowMeter device = new FlowMeter(wellsite, installDate, model);
-                                try {
-                                    FrDev.add(FlowMeter.getDevices(), device);
-                                    System.out.println();
-                                    System.out.println("添加成功");
-                                } catch (DeviceArrayFullException e) {
-                                    System.out.println();
-                                    System.out.println(e.getMessage());
-                                }
+                                addBatch(sc, "流量计", (wellsite, date, model) ->
+                                        FrDev.add(FlowMeter.getDevices(), new FlowMeter(wellsite, date, model)));
                                 continue1_1=false;
                                 break;
                             }
@@ -298,39 +296,8 @@ public class FrUi {
                             case "compressor":
                             case "压缩机":{
                                 sc.nextLine();
-                                String wellsite;
-                                do {
-                                    System.out.println("请输入所属井场：(参考格式:01)");
-                                    wellsite = sc.nextLine().trim();
-                                    if(!wellsite.matches("\\d{2}")){
-                                        System.out.println("格式错误！请按 xx 格式输入");
-                                    }
-                                } while (!wellsite.matches("\\d{2}"));
-
-                                String installDate;
-                                do {
-                                    System.out.println("请输入安装时间：(参考格式:xxxx-xx-xx)");
-                                    installDate = sc.nextLine().trim();
-                                    if(!installDate.matches("\\d{4}-\\d{2}-\\d{2}")){
-                                        System.out.println("格式错误！请按 xxxx-xx-xx 格式输入");
-                                    }
-                                } while (!installDate.matches("\\d{4}-\\d{2}-\\d{2}"));
-
-                                String model;
-                                do {
-                                    System.out.println("请输入型号：");
-                                    model = sc.nextLine().trim();
-                                } while (model.isEmpty());
-
-                                Compressor device = new Compressor(wellsite, installDate, model);
-                                try {
-                                    FrDev.add(Compressor.getDevices(), device);
-                                    System.out.println();
-                                    System.out.println("添加成功");
-                                } catch (DeviceArrayFullException e) {
-                                    System.out.println();
-                                    System.out.println(e.getMessage());
-                                }
+                                addBatch(sc, "压缩机", (wellsite, date, model) ->
+                                        FrDev.add(Compressor.getDevices(), new Compressor(wellsite, date, model)));
                                 continue1_1=false;
                                 break;
                             }
@@ -366,20 +333,9 @@ public class FrUi {
 
                             break;
                         case "2":
-                        sc.nextLine();
-                        System.out.println("请输入设备id,例如 PU_1:");
-                        String id = sc.nextLine();
-                        try {
-                            Equipment device = FrDev.findById(id);   // 异常版 findById
-                            System.out.println("-".repeat(30) + "设备信息" + "-".repeat(30));
-                            System.out.println(FrDev.showInfo(device));
-                            System.out.println("-".repeat(68));
-                        } catch (InvalidDeviceIdException e) {
-                            System.out.println("输入有误：" + e.getMessage());
-                        } catch (DeviceNotFoundException e) {
-                            System.out.println(e.getMessage());
-                        }
-                        break;
+                            sc.nextLine();
+                            queryDevices(sc);
+                            break;
 
 
                         case "3":
@@ -410,8 +366,7 @@ public class FrUi {
                                 String newInstallDate = sc.nextLine().trim();
                                 System.out.print("设备型号（当前：" + modifyDevice.getModel() + "，回车跳过）：");
                                 String newModel = sc.nextLine().trim();
-                                System.out.print("目前状态（当前：" + modifyDevice.getStatus() + "，回车跳过）：");
-                                String newStatus = sc.nextLine().trim();
+                                String newStatus = chooseDeviceStatus(sc, true);
 
                                 try {
                                     success = FrDev.modifyById(modifyId, newWellsite, newInstallDate,
@@ -462,6 +417,7 @@ public class FrUi {
 
                                 System.out.println("请输入设备id");
                                 String Id=sc.next();
+                                sc.nextLine(); // 清理输入 ID 后的换行，等待用户确认删除
 
                                 boolean Success=false;
                                 try {
@@ -509,27 +465,52 @@ public class FrUi {
                             continue1_=false;
                             break;
                         case "7":
-                            System.out.println(FrDev.showInfo(allDevices()));
+                            sc.nextLine();
+                            System.out.println(FrDev.showInfo(FrDev.allDevices()));
+                            System.out.println("按任意键返回");
+                            sc.nextLine();
                             break;
+                        case "8":
+                            sc.nextLine();
+                            sortDevices(sc);
+                            break;
+                        case "9":
+                            sc.nextLine();
+                            filterDevices(sc);
+                            break;
+                        case "0": {
+                            sc.nextLine();
+                            int before = FrDev.allDevices().length;
+                            try {
+                                FrDev.add20Devices();
+                                System.out.println("成功新增20个设备！");
+                            } catch (DeviceArrayFullException e) {
+                                int added = FrDev.allDevices().length - before;
+                                System.out.println("本次已新增" + added + "个设备，批量新增中止：" + e.getMessage());
+                            }
+                            System.out.println("按任意键返回");
+                            sc.nextLine();
+                            break;
+                        }
                         default:
                             System.out.println("请输入正确的数字！");
                     }
             }
                     break;
                 //此处case属于最大的switch
-                case "2":
-                    //数据采集与监控    这段由Cr编写
+                case "2":{
+                    
                     continue2_=true;
                     while (continue2_){
                         boolean continue2_1=true;
-                        boolean continue2_2=true;
-                        boolean continue2_3=true;
-                        boolean continue2_4=true;
+                
                         System.out.println("请输入你要执行的操作");
-                        System.out.println("1.数据采集");
+                        System.out.println("1.数据采集(需要先启动设备才能采集)");
                         System.out.println("2.实时状态");
                         System.out.println("3.单设备状态查看");
                         System.out.println("4.并发设备状态采集");
+                        System.out.println("5.一键启动设备(非采集数据仅启动)");
+                        System.out.println("6.一键关闭设备");
                         System.out.println("0.返回上一级");
                         System.out.println("-".repeat(30));
 
@@ -568,17 +549,18 @@ public class FrUi {
                                     }
                                     case "2":{
                                         //批量数据采集：接口静态方法统一调度，未启动的设备自动跳过
-                                        FrMon.collectAll(allDevices());
+                                        FrMon.collectAll(FrDev.allDevices());
+                                        sc.nextLine();
                                         System.out.println("按任意键返回");
                                         sc.nextLine();
                                         break;
                                     }
-                                    case "3":
-                                    continue2_1=false;
-                                    break;
-                                    default:
-                                    System.out.println("非法输入，跳转回上一页面");
-                                    break;
+                                    case "3":{
+                                        continue2_1=false;
+                                        break;}
+                                    default:{
+                                        System.out.println("非法输入，跳转回上一页面");
+                                        break;}
                                 }
 
 
@@ -591,7 +573,7 @@ public class FrUi {
                                 sc.nextLine();
                                 System.out.println("\t   实时状态台账");
                                 System.out.println("=".repeat(30));
-                                FrMon.showAll(allDevices());
+                                FrMon.showAll(FrDev.allDevices());
                                 System.out.println("按任意键返回");
                                 sc.nextLine();
                                 break;
@@ -622,12 +604,41 @@ public class FrUi {
 
                                 System.out.println("按任意键返回");
                                 sc.nextLine();
+                                break;
                             }
-                            break;
-                            }
-                    }
+                            
 
-                 break;
+                            case "5":{
+                                sc.nextLine();
+                                FrMon.turnOnAll(FrDev.allDevices());
+                                System.out.println("已将所有处于'尚未启动'的设备设置为'投运中'");
+                                System.out.println("按任意键返回");
+                                sc.nextLine();
+                                break;
+                            }
+                            
+
+                            case "6":{
+                                sc.nextLine(); 
+                                FrMon.turnOffAll(FrDev.allDevices());
+                                System.out.println("已将所有处于'投运中'的设备设置为'尚未启动'");
+                                System.out.println("按任意键返回");
+                                sc.nextLine();
+                                break;
+                            }
+                            
+                            default:{
+                                System.out.println("请输入正确的数字");
+                                break;
+                            }
+                            
+                        }
+                        
+                    }
+                    break;
+                }
+                    
+                
                 case "3": {
     boolean continue3_=true;
     while (continue3_){
@@ -643,12 +654,18 @@ public class FrUi {
             case "1": {
                 // 先采集一轮最新数据再巡检：否则检测的是设备初始值（全 0），
                 // PS/FM 会误报"低于下限"，TS 则永远"正常"
-                System.out.println("正在采集全部设备最新数据……");
-                int count = FrAlm.patrol(allDevices());
-                System.out.println(count == 0 ? "巡检完成，一切正常"
-                        : "巡检完成，共发现 " + count + " 条报警");
-                System.out.println("按任意键继续");
-                sc.next();sc.nextLine();
+                Equipment[] patrolDevices = FrDev.allDevices();
+                System.out.println("正在采集投运设备最新数据……");
+                FrAlm.PatrolResult result = FrAlm.patrolWithResult(patrolDevices);
+                System.out.println("巡检完成：参与 " + result.participating() + " 台，跳过 "
+                        + result.skipped() + " 台，发现 " + result.alarms() + " 条报警");
+                if (result.participating() == 0) {
+                    boolean hasRunning = java.util.Arrays.stream(patrolDevices).anyMatch(Equipment::isRunning);
+                    System.out.println(hasRunning ? "没有成功采集的设备，本轮未执行报警检测"
+                            : "没有投运中的设备，本轮未执行报警检测");
+                }
+                sc.nextLine();
+                waitForEnter(sc);
                 break;
             }
             case "2": {
@@ -748,7 +765,7 @@ public class FrUi {
                             if (rec.confirm()) {
                                 System.out.println("报警 " + handleId + " 已确认");
                                 String maintenanceMessage = FrAlm.generateMaintenanceIfSupported(rec);
-                                if (!maintenanceMessage.isEmpty()) {
+                                if (!maintenanceMessage.isEmpty()) {//找不到设备或设备不支持运维时返回对应文字
                                     System.out.println(maintenanceMessage);
                                 }
                             } else {
@@ -780,7 +797,8 @@ public class FrUi {
                     }
                 }
                 System.out.println("按任意键继续");
-                sc.next();sc.nextLine();
+                sc.next();
+                sc.nextLine();
                 break;
             }
             case "5":
@@ -831,22 +849,6 @@ public class FrUi {
         }
         sc.close();
     }
-    private static Equipment[] allDevices() {
-        java.util.List<Equipment> list = new java.util.ArrayList<>();
-        devices.DeviceArray<?>[] pools = {
-                PumpingUnit.getDevices(), CentrifugalPump.getDevices(),
-                PressureSensor.getDevices(), TemperatureSensor.getDevices(),
-                FlowMeter.getDevices(), Compressor.getDevices()
-        };
-        for (devices.DeviceArray<?> pool : pools) {
-            for (int i = 0; i < pool.size(); i++) {
-                Equipment e = pool.getOrNull(i);
-                if (e != null) {
-                    list.add(e);
-                }
-            }
-        }
-        return list.toArray(new Equipment[0]);
-    }
+    
 
 }

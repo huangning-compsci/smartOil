@@ -11,16 +11,35 @@ import interfaces.Maintainable;
 import java.util.Scanner;
 
 public class FrAlm {
-    /** 先采集最新数据，再巡检全部设备，返回报警数量。 */
+    /** 兼容原调用方，返回本轮报警数量。 */
     public static int patrol(Equipment... devices) {
+        return patrolWithResult(devices).alarms();
+    }
+
+    public record PatrolResult(int participating, int skipped, int alarms) { }
+
+    /** 只检测本轮成功采集的投运设备；跳过设备不产生新报警。 */
+    public static PatrolResult patrolWithResult(Equipment... devices) {
         java.util.List<Alarmable> alarmables = new java.util.ArrayList<>();
+        int skipped = 0;
         for (Equipment device : devices) {
-            if (device instanceof Alarmable a) {
+            if (device == null) continue;
+            if (!device.isRunning() || !(device instanceof Alarmable a)
+                    || !(device instanceof Collectable c)) {
+                skipped++;
+                continue;
+            }
+            try {
+                c.collectData();
                 alarmables.add(a);
+            } catch (DeviceNotRunningException e) {
+                skipped++;
+                System.out.println("跳过：" + e.getMessage());
             }
         }
-        FrMon.collectAll(devices);
-        return Alarmable.patrol(alarmables.toArray(new Alarmable[0]));
+        FrMon.showAll(devices);
+        int alarms = Alarmable.patrol(alarmables.toArray(new Alarmable[0]));
+        return new PatrolResult(alarmables.size(), skipped, alarms);
     }
 
     /** 单设备采集与报警检测；发现报警时先记录，再交给界面提示。 */

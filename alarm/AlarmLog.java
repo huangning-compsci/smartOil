@@ -57,7 +57,7 @@ public final class AlarmLog {
             AlarmException.Level level, String deviceId,
             LocalDateTime from, LocalDateTime to) {
         List<AlarmRecord> result = new ArrayList<>();
-        for (AlarmRecord r : RECORDS) {
+        for (AlarmRecord r : RECORDS) {//漏斗条件筛选,符合条件才add
             if (status != null && r.getStatusEnum() != status) {
                 continue;
             }
