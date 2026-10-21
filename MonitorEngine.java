@@ -1,91 +1,109 @@
 import devices.Equipment;
-import interfaces.Alarmable;
 import exceptions.AlarmException;
-import java.util.concurrent.*;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MonitorEngine {
-    // 1. 共享缓冲区：容量为 100 的阻塞队列
-    private final BlockingQueue<Equipment> dataQueue = new LinkedBlockingQueue<>(100);
-    
-    // 2. 线程池
-    private final ExecutorService collectPool;
-    
-    // 控制开关
-    private volatile boolean running = false; 
-
-    // 3. M5 考点：共享的报警计数器（使用 synchronized 保护）和线程安全的设备状态 Map
-    private int alarmCounter = 0;
+    // 保存本轮报警结果，而不是下一轮可能被改写的设备对象。
+    private final BlockingQueue<AlarmException> alarmQueue = new LinkedBlockingQueue<>(100);
+    private final ScheduledExecutorService collectPool = Executors.newScheduledThreadPool(10);
     private final Map<String, String> deviceStatusMap = new ConcurrentHashMap<>();
+    private final AtomicInteger alarmCounter = new AtomicInteger();
+    private final boolean testMode;
+    private volatile boolean running;
+    private Thread consumerThread;
 
     public MonitorEngine() {
-        // M5 考点：线程中的异常如何捕获和记录。
-        // 通过自定义 ThreadFactory，为线程池中创建出的每一个线程设置未捕获异常处理器。
-        ThreadFactory threadFactory = r -> {
-            Thread t = new Thread(r);
-            t.setUncaughtExceptionHandler((thread, e) -> {
-                System.err.println("[全局异常捕获] 线程 " + thread.getName() + " 发生未捕获异常: " + e.getMessage());
-            });
-            return t;
-        };
-
-        // 使用 ThreadPoolExecutor 注入线程工厂
-        ThreadPoolExecutor pool = new ThreadPoolExecutor(
-                10, 10, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(), threadFactory);
-        
-        this.collectPool = pool;
+        this(false);
     }
 
-    // 启动监控引擎
-    public void start(Equipment[] devices) {
+    /** 压测模式只统计报警，不写入正式报警库和运维队列。 */
+    public MonitorEngine(boolean testMode) {
+        this.testMode = testMode;
+    }
+
+    /** 一个引擎只启动一次；每台设备完成一轮后，间隔一秒再次采集。 */
+    public synchronized void start(Equipment[] devices) {
+        if (consumerThread != null || collectPool.isShutdown()) {
+            throw new IllegalStateException("监控引擎不能重复启动，请创建新实例");
+        }
+        Objects.requireNonNull(devices, "设备列表不能为空");
+        Equipment[] snapshot = devices.clone();
+        for (Equipment device : snapshot) {
+            Objects.requireNonNull(device, "设备列表不能包含空设备");
+        }
         running = true;
-        System.out.println("[系统] 正在启动并发监控引擎...");
-
-        // --- 启动消费者线程（报警处理） ---
-        Thread consumerThread = new Thread(() -> {
-            while (running || !dataQueue.isEmpty()) {
-                try {
-                    // take() 是阻塞方法，队列为空时自动等待，不占 CPU
-                    Equipment device = dataQueue.take(); 
-                    if (device instanceof Alarmable a) {
-                        try {
-                            a.checkAlarm(); // 触发报警检测
-                        } catch (AlarmException e) {
-                            // 发生报警，存入线程安全的 AlarmLog
-                            alarm.AlarmLog.record(e); 
-                            
-                            // M5 考点：使用 synchronized 保护共享的报警计数器
-                            synchronized (this) {
-                                alarmCounter++;
-                                // 每 100 条打印一次，防止控制台输出太快卡死（并发 IO 优化）
-                                if (alarmCounter % 100 == 0) {
-                                    System.out.println("[监控引擎] 后台已静默捕获并处理 " + alarmCounter + " 条并发报警...");
-                                }
-                            }
-                            
-                            // M5 考点：联动运维模块（安全入队）
-                            // 这里的 e 是 AlarmException，有 getDeviceId 和 getDescription 方法
-                            FrMnt.addTask("设备 " + e.getDeviceId() + " 异常：" + e.getDescription());
-                        }
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        }, "Alarm-Consumer");
+        consumerThread = new Thread(this::consumeAlarms, "Alarm-Consumer");
         consumerThread.start();
+        for (Equipment device : snapshot) {
+            collectPool.scheduleWithFixedDelay(
+                    new DataCollectionTask(device, alarmQueue, deviceStatusMap),
+                    0, 1, TimeUnit.SECONDS);
+        }
+        System.out.println("[系统] 并发监控引擎已启动，每台设备每轮采集间隔 1 秒"
+                + (testMode ? "（压测模式，数据不写入正式记录）" : ""));
+    }
 
-        // --- 启动生产者（数据采集） ---
-        for (Equipment device : devices) {
-            // M5 考点：将任务封装成实现 Runnable 的类提交给线程池
-            collectPool.submit(new DataCollectionTask(device, dataQueue, deviceStatusMap));
+    private void consumeAlarms() {
+        // 停止调度后，仍等待在途采集结束，并处理完已经入队的报警。
+        while (running || !collectPool.isTerminated() || !alarmQueue.isEmpty()) {
+            try {
+                AlarmException event = alarmQueue.poll(100, TimeUnit.MILLISECONDS);
+                if (event == null) {
+                    continue;
+                }
+                if (!testMode) {
+                    alarm.AlarmLog.record(event);
+                    FrMnt.addTask("设备 " + event.getDeviceId() + " 异常：" + event.getDescription());
+                }
+                int count = alarmCounter.incrementAndGet();
+                if (count % 100 == 0) {
+                    System.out.println("[监控引擎] 已处理 " + count + " 条报警"
+                            + (testMode ? "（仅压测统计）" : ""));
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
         }
     }
 
-    // 停止监控引擎
-    public void stop() {
+    /** 停止后不再采集；只有所有线程结束，才报告最终统计。 */
+    public synchronized void stop() {
         running = false;
-        collectPool.shutdownNow(); // 中断所有线程
-        System.out.println("[系统] 并发监控引擎已停止。本次总计处理报警: " + alarmCounter + " 条");
+        collectPool.shutdown();
+        boolean interrupted = false;
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        try {
+            while (!collectPool.isTerminated()
+                    || (consumerThread != null && consumerThread.isAlive())) {
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0) {
+                    collectPool.shutdownNow();
+                    if (consumerThread != null) {
+                        consumerThread.interrupt();
+                    }
+                    throw new IllegalStateException("监控引擎停止超时，已请求强制中断，部分报警可能未处理");
+                }
+                try {
+                    if (!collectPool.isTerminated()) {
+                        collectPool.awaitTermination(remaining, TimeUnit.NANOSECONDS);
+                    } else {
+                        TimeUnit.NANOSECONDS.timedJoin(consumerThread, remaining);
+                    }
+                } catch (InterruptedException e) {
+                    // 先完成资源清理，再恢复调用线程的中断状态。
+                    interrupted = true;
+                }
+            }
+            System.out.println("[系统] 并发监控引擎已停止。本次总计处理报警: "
+                    + alarmCounter.get() + " 条");
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 }
