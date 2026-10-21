@@ -40,8 +40,12 @@ public class CentrifugalPump extends FluidTransportEquipment
             new DeviceArray<>(new CentrifugalPump[10]);
 
     public CentrifugalPump() {
+        this(NAME + '_' + (++index));
+    }
+
+    private CentrifugalPump(String id) {
         super(
-            NAME + '_' + (++index),
+            id,
             "CentrifugalPump",
             "",
             "",
@@ -50,6 +54,18 @@ public class CentrifugalPump extends FluidTransportEquipment
         );
         this.ratedFlow = 50.0;
         this.ratedHead = 120.0;
+    }
+
+    /** 压测专用：不消耗正式编号，也不注册到正式设备台账。 */
+    public static CentrifugalPump createTestDevice(int number) {
+        if (number <= 0) {
+            throw new IllegalArgumentException("测试设备编号必须大于 0");
+        }
+        CentrifugalPump device = new CentrifugalPump("TEST_CP_" + number);
+        device.setModel("TEST");
+        device.setWellsite("99");
+        device.setInstallDate("2026-01-01");
+        return device;
     }
 
     public CentrifugalPump(

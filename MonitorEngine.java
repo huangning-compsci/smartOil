@@ -1,0 +1,109 @@
+import devices.Equipment;
+import exceptions.AlarmException;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+
+public class MonitorEngine {
+    // 保存本轮报警结果，而不是下一轮可能被改写的设备对象。
+    private final BlockingQueue<AlarmException> alarmQueue = new LinkedBlockingQueue<>(100);
+    private final ScheduledExecutorService collectPool = Executors.newScheduledThreadPool(10);
+    private final Map<String, String> deviceStatusMap = new ConcurrentHashMap<>();
+    private final AtomicInteger alarmCounter = new AtomicInteger();
+    private final boolean testMode;
+    private volatile boolean running;
+    private Thread consumerThread;
+
+    public MonitorEngine() {
+        this(false);
+    }
+
+    /** 压测模式只统计报警，不写入正式报警库和运维队列。 */
+    public MonitorEngine(boolean testMode) {
+        this.testMode = testMode;
+    }
+
+    /** 一个引擎只启动一次；每台设备完成一轮后，间隔一秒再次采集。 */
+    public synchronized void start(Equipment[] devices) {
+        if (consumerThread != null || collectPool.isShutdown()) {
+            throw new IllegalStateException("监控引擎不能重复启动，请创建新实例");
+        }
+        Objects.requireNonNull(devices, "设备列表不能为空");
+        Equipment[] snapshot = devices.clone();
+        for (Equipment device : snapshot) {
+            Objects.requireNonNull(device, "设备列表不能包含空设备");
+        }
+        running = true;
+        consumerThread = new Thread(this::consumeAlarms, "Alarm-Consumer");
+        consumerThread.start();
+        for (Equipment device : snapshot) {
+            collectPool.scheduleWithFixedDelay(
+                    new DataCollectionTask(device, alarmQueue, deviceStatusMap),
+                    0, 1, TimeUnit.SECONDS);
+        }
+        System.out.println("[系统] 并发监控引擎已启动，每台设备每轮采集间隔 1 秒"
+                + (testMode ? "（压测模式，数据不写入正式记录）" : ""));
+    }
+
+    private void consumeAlarms() {
+        // 停止调度后，仍等待在途采集结束，并处理完已经入队的报警。
+        while (running || !collectPool.isTerminated() || !alarmQueue.isEmpty()) {
+            try {
+                AlarmException event = alarmQueue.poll(100, TimeUnit.MILLISECONDS);
+                if (event == null) {
+                    continue;
+                }
+                if (!testMode) {
+                    alarm.AlarmLog.record(event);
+                    FrMnt.addTask("设备 " + event.getDeviceId() + " 异常：" + event.getDescription());
+                }
+                int count = alarmCounter.incrementAndGet();
+                if (count % 100 == 0) {
+                    System.out.println("[监控引擎] 已处理 " + count + " 条报警"
+                            + (testMode ? "（仅压测统计）" : ""));
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
+    /** 停止后不再采集；只有所有线程结束，才报告最终统计。 */
+    public synchronized void stop() {
+        running = false;
+        collectPool.shutdown();
+        boolean interrupted = false;
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        try {
+            while (!collectPool.isTerminated()
+                    || (consumerThread != null && consumerThread.isAlive())) {
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0) {
+                    collectPool.shutdownNow();
+                    if (consumerThread != null) {
+                        consumerThread.interrupt();
+                    }
+                    throw new IllegalStateException("监控引擎停止超时，已请求强制中断，部分报警可能未处理");
+                }
+                try {
+                    if (!collectPool.isTerminated()) {
+                        collectPool.awaitTermination(remaining, TimeUnit.NANOSECONDS);
+                    } else {
+                        TimeUnit.NANOSECONDS.timedJoin(consumerThread, remaining);
+                    }
+                } catch (InterruptedException e) {
+                    // 先完成资源清理，再恢复调用线程的中断状态。
+                    interrupted = true;
+                }
+            }
+            System.out.println("[系统] 并发监控引擎已停止。本次总计处理报警: "
+                    + alarmCounter.get() + " 条");
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+}

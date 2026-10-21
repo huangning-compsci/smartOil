@@ -310,7 +310,6 @@ public class FrUi {
 
                                     switch (sc.next()) {
                                         case "1":
-
                                             break;
                                         case "2":
                                             continue1_1=false;
@@ -324,13 +323,9 @@ public class FrUi {
                                         default:
                                         System.out.println("请输入正确的数字！");
                                         break;
-
-
                                     }
                                 }
                             }
-
-
                             break;
                         case "2":
                             sc.nextLine();
@@ -372,7 +367,6 @@ public class FrUi {
                                     success = FrDev.modifyById(modifyId, newWellsite, newInstallDate,
                                             newModel, newStatus);
                                 } catch (InvalidDeviceIdException | DeviceNotFoundException e) {
-                                    // 理论上不会触发（上面已查到设备），但受检异常必须处理
                                     System.out.println(e.getMessage());
                                 }
                             }
@@ -436,7 +430,6 @@ public class FrUi {
                                     System.out.println("请输入您的选择");
                                     switch (sc.next()) {
                                         case "1":
-
                                             break;
                                         case "2":
                                             continue1_4=false;
@@ -508,9 +501,12 @@ public class FrUi {
                         System.out.println("1.数据采集(需要先启动设备才能采集)");
                         System.out.println("2.实时状态");
                         System.out.println("3.单设备状态查看");
-                        System.out.println("4.并发设备状态采集");
+                        System.out.println("4.并发性能自检");
                         System.out.println("5.一键启动设备(非采集数据仅启动)");
                         System.out.println("6.一键关闭设备");
+                        // ======== M5 新增：菜单项 7 ========
+                        System.out.println("7.千台虚拟设备后台压测（10秒，不写入正式记录）");
+                        // ==================================
                         System.out.println("0.返回上一级");
                         System.out.println("-".repeat(30));
 
@@ -597,16 +593,77 @@ public class FrUi {
                                
                             }
 
+                            // ======== M5 新增：千级并发性能自检 ========
                             case "4":{
-                                System.out.println("\t   实时状态");
+                                System.out.println("\t   并发性能自检 (千级设备压测)");
                                 System.out.println("=".repeat(30));
-                                //
+                                
+                                int testCount = 1000; // 测试规模提升至 1000 台！
+                                System.out.println("正在准备 " + testCount + " 台虚拟设备进行测试...");
+                                devices.Equipment[] testDevices = new devices.Equipment[testCount];
+                                for (int i = 0; i < testCount; i++) {
+                                    testDevices[i] = CentrifugalPump.createTestDevice(i + 1);
+                                    testDevices[i].setStatus("投运中");
+                                }
 
-                                System.out.println("按任意键返回");
-                                sc.nextLine();
+                                // 1. 单线程串行采集
+                                System.out.println("\n[开始] 单线程串行采集...");
+                                long startSingle = System.currentTimeMillis();
+                                for (devices.Equipment dev : testDevices) {
+                                    try {
+                                        Thread.sleep(5); // 每次模拟 5ms 延迟
+                                        if (dev instanceof interfaces.Collectable c) {
+                                            c.collectData();
+                                        }
+                                    } catch (Exception ignored) {}
+                                }
+                                long timeSingle = System.currentTimeMillis() - startSingle;
+                                System.out.println("单线程耗时: " + timeSingle + " ms");
+
+                                // 2. 多线程并发采集
+                                System.out.println("\n[开始] 多线程并发采集...");
+                                java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(10);
+                                java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(testCount);
+                                
+                                long startMulti = System.currentTimeMillis();
+                                for (devices.Equipment dev : testDevices) {
+                                    pool.submit(() -> {
+                                        try {
+                                            Thread.sleep(5); 
+                                            if (dev instanceof interfaces.Collectable c) {
+                                                c.collectData();
+                                            }
+                                        } catch (Exception ignored) {
+                                        } finally {
+                                            latch.countDown();
+                                        }
+                                    });
+                                }
+                                
+                                try {
+                                    latch.await(); 
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                }
+                                pool.shutdown();
+                                
+                                long timeMulti = System.currentTimeMillis() - startMulti;
+                                System.out.println("多线程耗时: " + timeMulti + " ms");
+
+                                // 3. 打印结果
+                                System.out.println("\n=========================================");
+                                System.out.println("性能对比结果 (规模: " + testCount + "台)：");
+                                System.out.println("单线程耗时: " + timeSingle + " ms");
+                                System.out.println("多线程耗时: " + timeMulti + " ms");
+                                System.out.println("性能提升: " + String.format("%.2f", (double) timeSingle / Math.max(1, timeMulti)) + " 倍！");
+                                System.out.println("=========================================");
+
+                                System.out.println("\n按回车返回");
+                                sc.nextLine(); 
+                                sc.nextLine(); 
                                 break;
                             }
-                            
+                            // ==========================================
 
                             case "5":{
                                 sc.nextLine();
@@ -617,7 +674,6 @@ public class FrUi {
                                 break;
                             }
                             
-
                             case "6":{
                                 sc.nextLine(); 
                                 FrMon.turnOffAll(FrDev.allDevices());
@@ -626,6 +682,38 @@ public class FrUi {
                                 sc.nextLine();
                                 break;
                             }
+
+                            // ======== M5 新增：千级后台并发压测（自动运行 10 秒） ========
+                            case "7":{
+                                sc.nextLine(); // 吃掉菜单选项的回车
+                                System.out.println("\n正在生成 1000 台虚拟设备用于后台并发压测...");
+                                
+                                Equipment[] virtualDevices = new Equipment[1000];
+                                for(int i=0; i<1000; i++) {
+                                    virtualDevices[i] = CentrifugalPump.createTestDevice(i + 1);
+                                    virtualDevices[i].setStatus("投运中");
+                                }
+                                
+                                MonitorEngine engine = new MonitorEngine(true);
+                                engine.start(virtualDevices);
+                                
+                                System.out.println("\n>>> 监控后台运行中(1000台设备高并发) <<<");
+                                System.out.println(">>> 请观察控制台每处理 100 条报警的提示信息 <<<");
+                                System.out.println(">>> 倒计时 10 秒后将自动停止...");
+                                
+                                try { 
+                                    Thread.sleep(10000); 
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                } finally {
+                                    engine.stop();
+                                }
+                                System.out.println("\n后台压测结束！");
+                                System.out.println("\n按回车返回菜单...");
+                                sc.nextLine();
+                                break;
+                            }
+                            // ================================================================
                             
                             default:{
                                 System.out.println("请输入正确的数字");
@@ -760,7 +848,7 @@ public class FrUi {
                     System.out.println("3.忽略误报（填写忽略原因）");
                     System.out.println("其他键.取消");
                     System.out.println("请输入您的选择：");
-                    switch (sc.next()) {
+                    switch (sc.nextLine().trim()) {
                         case "1":
                             if (rec.confirm()) {
                                 System.out.println("报警 " + handleId + " 已确认");
@@ -774,7 +862,6 @@ public class FrUi {
                             }
                             break;
                         case "2": {
-                            sc.nextLine();
                             System.out.println("请输入处理说明：");
                             String note = sc.nextLine().trim();
                             System.out.println(rec.handle(note)
@@ -783,7 +870,6 @@ public class FrUi {
                             break;
                         }
                         case "3": {
-                            sc.nextLine();
                             System.out.println("请输入忽略原因：");
                             String reason = sc.nextLine().trim();
                             System.out.println(rec.ignore(reason)
@@ -796,9 +882,7 @@ public class FrUi {
                             break;
                     }
                 }
-                System.out.println("按任意键继续");
-                sc.next();
-                sc.nextLine();
+                waitForEnter(sc);
                 break;
             }
             case "5":
@@ -812,9 +896,38 @@ public class FrUi {
     break;
 }
 
-                case "4":
-                    //运维任务管理
+                case "4": {
+                    // M5 考点：运维任务队列（开发B任务）
+                    boolean continueMnt = true;
+                    while (continueMnt) {
+                        System.out.println("\t   运维任务管理 (并发安全队列)");
+                        System.out.println("=".repeat(30));
+                        System.out.println("1.查看待处理运维队列");
+                        System.out.println("2.维修工接单处理 (出队)");
+                        System.out.println("0.返回上一级");
+                        System.out.print("请输入您的选择：");
+                        
+                        // 使用 sc.next() 自动过滤掉所有多余的回车和空格，非常安全
+                        String mntChoice = sc.next(); 
+                        
+                        switch (mntChoice) {
+                            case "1":
+                                FrMnt.showTasks();
+                                break;
+                            case "2":
+                                FrMnt.processTask();
+                                break;
+                            case "0":
+                                continueMnt = false;
+                                break;
+                            default:
+                                System.out.println("请输入正确的数字！");
+                        }
+                    }
+                    // 退出运维菜单时，吃掉最后的回车，防止影响主菜单
+                    sc.nextLine(); 
                     break;
+                }
                 case "5":
                     //数据统计与报表
                     break;
@@ -849,6 +962,4 @@ public class FrUi {
         }
         sc.close();
     }
-    
-
 }

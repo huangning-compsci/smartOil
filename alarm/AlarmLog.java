@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import exceptions.AlarmException;
 
@@ -13,8 +14,7 @@ import exceptions.AlarmException;
  */
 public final class AlarmLog {
 
-    private static final List<AlarmRecord> RECORDS = new ArrayList<>();
-
+    private static final List<AlarmRecord> RECORDS = new CopyOnWriteArrayList<>();
     private AlarmLog() {
     }
 
