@@ -505,7 +505,7 @@ public class FrUi {
                         System.out.println("5.一键启动设备(非采集数据仅启动)");
                         System.out.println("6.一键关闭设备");
                         // ======== M5 新增：菜单项 7 ========
-                        System.out.println("7.开启后台并发监控(多线程生产者消费者)");
+                        System.out.println("7.千台虚拟设备后台压测（10秒，不写入正式记录）");
                         // ==================================
                         System.out.println("0.返回上一级");
                         System.out.println("-".repeat(30));
@@ -602,7 +602,7 @@ public class FrUi {
                                 System.out.println("正在准备 " + testCount + " 台虚拟设备进行测试...");
                                 devices.Equipment[] testDevices = new devices.Equipment[testCount];
                                 for (int i = 0; i < testCount; i++) {
-                                    testDevices[i] = new devices.FluidTransportDevices.CentrifugalPump("99", "2026-01-01", "TEST");
+                                    testDevices[i] = CentrifugalPump.createTestDevice(i + 1);
                                     testDevices[i].setStatus("投运中");
                                 }
 
@@ -690,11 +690,11 @@ public class FrUi {
                                 
                                 Equipment[] virtualDevices = new Equipment[1000];
                                 for(int i=0; i<1000; i++) {
-                                    virtualDevices[i] = new CentrifugalPump("99", "2026-01-01", "TEST");
+                                    virtualDevices[i] = CentrifugalPump.createTestDevice(i + 1);
                                     virtualDevices[i].setStatus("投运中");
                                 }
                                 
-                                MonitorEngine engine = new MonitorEngine();
+                                MonitorEngine engine = new MonitorEngine(true);
                                 engine.start(virtualDevices);
                                 
                                 System.out.println("\n>>> 监控后台运行中(1000台设备高并发) <<<");
@@ -703,9 +703,11 @@ public class FrUi {
                                 
                                 try { 
                                     Thread.sleep(10000); 
-                                } catch(Exception ignored) {}
-                                
-                                engine.stop();
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                } finally {
+                                    engine.stop();
+                                }
                                 System.out.println("\n后台压测结束！");
                                 System.out.println("\n按回车返回菜单...");
                                 sc.nextLine();
