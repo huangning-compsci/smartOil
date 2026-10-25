@@ -129,4 +129,9 @@ public final class AlarmLog {
                 || (c >= 0xFF01 && c <= 0xFF60)
                 || (c >= 0xFFE0 && c <= 0xFFE6) ? 2 : 1).sum();
     }
+
+    public static double getRecordNumber(){
+        return query(AlarmRecord.Status.HANDLED, null, null, null, null).size()/RECORDS.size();
+    }
+    
 }
