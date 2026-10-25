@@ -988,6 +988,11 @@ public class FrUi {
                     case "4":
                         sc.nextLine();
                         //报表生成
+                        System.out.println(FrRpt.generateReport());
+                        waitForEnter(sc);
+                        break;
+                    case "0":
+                        continue5_ = false;
                         break;
                     default:
                         System.out.println("请输入正确的数字");
