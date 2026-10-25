@@ -3,6 +3,8 @@ import java.time.LocalDateTime;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import exceptions.AlarmException;
+
 /** 一张运维工单，负责保存工单信息并约束状态转换。 */
 public class MaintenanceTask {
     
@@ -24,6 +26,8 @@ public class MaintenanceTask {
         }
     }
 
+    
+
     private static final AtomicInteger SEQUENCE = new AtomicInteger();
 
     private final String taskId;
@@ -33,16 +37,18 @@ public class MaintenanceTask {
     private final LocalDateTime createTime;
     private volatile String handler;
     private volatile Status status;
+    private volatile AlarmException.Level level;
     private volatile LocalDateTime finishTime;
     private volatile String result;
 
-    public MaintenanceTask(String deviceId, String alarmId, String reason) {
+    public MaintenanceTask(String deviceId, String alarmId, String reason,AlarmException.Level level) {
         this.taskId = "MNT_" + SEQUENCE.incrementAndGet();
         this.deviceId = requireText(deviceId, "设备编号不能为空");
         this.alarmId = normalizeOptional(alarmId);
         this.reason = requireText(reason, "报修原因不能为空");
         this.createTime = LocalDateTime.now();
         this.status = Status.PENDING_ASSIGNMENT;
+        this.level=level;
     }
 
     /** 待分派 -> 待接收。 */
@@ -127,6 +133,10 @@ public class MaintenanceTask {
 
     public Status getStatusEnum() {
         return status;
+    }
+
+    public AlarmException.Level getLevelEnum(){
+        return level;
     }
 
     public LocalDateTime getFinishTime() {
