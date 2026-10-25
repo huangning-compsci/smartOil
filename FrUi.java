@@ -770,9 +770,11 @@ public class FrUi {
                     String deviceId = sc.nextLine().trim();
                     System.out.println("请输入报修原因：");
                     String reason = sc.nextLine().trim();
+                    System.out.println("请选择报警等级");
+                    AlarmException.Level level=FrAlm.chooseLevel(sc);
                     try {
                         FrDev.findById(deviceId);
-                        MaintenanceTask task = FrMnt.createTask(deviceId, null, reason);
+                        MaintenanceTask task = FrMnt.createTask(deviceId, null, reason,level);
                         System.out.println("人工工单创建成功：" + task.getTaskId());
                     } catch (InvalidDeviceIdException | DeviceNotFoundException
                             | IllegalArgumentException e) {
@@ -941,9 +943,47 @@ public class FrUi {
                 waitForEnter(sc);
                 break;
                     case "3":
+                         //运维
                         sc.nextLine();
-                        
-                        //运维
+                        System.out.println("\t   运维任务统计");
+                        System.out.println("=".repeat(30));
+                        System.out.println("1.按任务状态统计");
+                        System.out.println("2.按任务类型统计");
+                        System.out.println("3.任务完成率统计");
+                        System.out.println("4.平均处理时长统计");
+                        System.out.println("请输入您的选择：");
+                        switch (sc.nextLine()) {
+                            case "1":
+                                sc.nextLine();
+                                MaintenanceTask.Status status = FrMnt.chooseMaintenanceStatus(sc);
+                                if (status != null) {
+                                    FrMnt.printMaintenanceTasks(FrMnt.queryByStatus(status));
+                                }
+                                waitForEnter(sc);
+                                break;
+                            case "2":
+                                sc.nextLine();
+                                //按运维类型统计
+                                AlarmException.Level level = FrAlm.chooseLevel(sc);
+                                if (level != null) {
+                                    FrMnt.printMaintenanceTasks(FrMnt.queryByLevel(level));
+                                }
+                                waitForEnter(sc);
+                                break;
+                            case "3":
+                                sc.nextLine();
+                                System.out.println("任务完成率为:"+FrMnt.getRate());
+                                break;
+                            case "4":
+                                //平均处理时长统计
+                                System.out.printf("平均处理时长为：%.2f 秒%n", FrMnt.getAverageProcessingTime());
+                                waitForEnter(sc);
+                                break;
+                            default:
+                                System.out.println("请输入正确的数字!");
+                                break;
+                        }
+                       
                         break;
                     case "4":
                         sc.nextLine();
