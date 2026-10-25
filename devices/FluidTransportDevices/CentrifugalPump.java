@@ -40,12 +40,8 @@ public class CentrifugalPump extends FluidTransportEquipment
             new DeviceArray<>(new CentrifugalPump[10]);
 
     public CentrifugalPump() {
-        this(NAME + '_' + (++index));
-    }
-
-    private CentrifugalPump(String id) {
         super(
-            id,
+            NAME + '_' + (++index),
             "CentrifugalPump",
             "",
             "",
@@ -54,18 +50,6 @@ public class CentrifugalPump extends FluidTransportEquipment
         );
         this.ratedFlow = 50.0;
         this.ratedHead = 120.0;
-    }
-
-    /** 压测专用：不消耗正式编号，也不注册到正式设备台账。 */
-    public static CentrifugalPump createTestDevice(int number) {
-        if (number <= 0) {
-            throw new IllegalArgumentException("测试设备编号必须大于 0");
-        }
-        CentrifugalPump device = new CentrifugalPump("TEST_CP_" + number);
-        device.setModel("TEST");
-        device.setWellsite("99");
-        device.setInstallDate("2026-01-01");
-        return device;
     }
 
     public CentrifugalPump(
@@ -86,7 +70,7 @@ public class CentrifugalPump extends FluidTransportEquipment
     /**
      * FR-MON-01 模拟数据采集。
      * 修复原 bug：(int)Math.random() 恒为 0，应写成 (int)(Math.random()*范围+基数)。
-     * 约 20% 概率出口压力跌落（扬程不足），用于演示报警。
+     * 1% 概率出口压力跌落（扬程不足），其余数据保持正常。
      */
     @Override
     public void collectData() throws DeviceNotRunningException {
@@ -95,10 +79,10 @@ public class CentrifugalPump extends FluidTransportEquipment
         }
         this.inletPressure = (int) (Math.random() * 21 + 10) / 100.0;   // 0.10~0.30 MPa
         double k;
-        if (Math.random() < 0.8) {
-            k = (int) (Math.random() * 21 + 90) / 100.0;                // 0.90~1.10 正常扬程
-        } else {
+        if (Math.random() < 0.01) {
             k = (int) (Math.random() * 30 + 50) / 100.0;                // 0.50~0.79 扬程不足
+        } else {
+            k = (int) (Math.random() * 21 + 90) / 100.0;                // 0.90~1.10 正常扬程
         }
         this.outletPressure = inletPressure + k * HEAD_COEF;
         this.hasInletPressureData = true;

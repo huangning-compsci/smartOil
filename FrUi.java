@@ -1,5 +1,3 @@
-import alarm.AlarmLog;
-import alarm.AlarmRecord;
 import devices.FluidTransportDevices.CentrifugalPump;
 import devices.FluidTransportDevices.Compressor;
 import devices.MonitoringDevices.FlowMeter;
@@ -16,35 +14,41 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Scanner;
 
+import Task.AlarmLog;
+import Task.AlarmRecord;
+import Task.MaintenanceTask;
+
 public class FrUi {
-    private static final String[] DEVICE_STATUSES = {"尚未启动", "投运中", "故障", "维修中", "停用"};
-
-    private static String chooseDeviceStatus(Scanner sc, boolean allowSkip) {
-        System.out.println("请选择设备状态：");
-        for (int i = 0; i < DEVICE_STATUSES.length; i++) {
-            System.out.println((i + 1) + "." + DEVICE_STATUSES[i]);
-        }
-        if (allowSkip) System.out.println("0.不修改（回车也可跳过）");
-        while (true) {
-            String choice = sc.nextLine().trim();
-            if (allowSkip && (choice.isEmpty() || "0".equals(choice))) return "";
-            if (choice.matches("[1-5]")) return DEVICE_STATUSES[Integer.parseInt(choice) - 1];
-            System.out.println("请输入有效的状态编号！");
-        }
-    }
-
+    
     private static void showResults(Scanner sc, Equipment[] results) {
-        if (results.length == 0) System.out.println("没有符合条件的设备");
-        else {
-            System.out.println("共找到 " + results.length + " 台设备：");
-            System.out.println(FrDev.showInfo(results));
-        }
-        waitForEnter(sc);
+    if (results.length == 0) System.out.println("没有符合条件的设备");
+    else {
+        System.out.println("共找到 " + results.length + " 台设备：");
+        System.out.println(FrDev.showInfo(results));
+    }
+    waitForEnter(sc);
     }
 
     private static void waitForEnter(Scanner sc) {
         System.out.println("按回车返回");
         sc.nextLine();
+    }
+
+    static MonitorEngine toggleMonitoring(MonitorEngine current) {
+        if (current != null && current.isRunning()) {
+            current.stop();
+            System.out.println("实时监控已关闭");
+            return null;
+        }
+        Equipment[] currentDevices = FrDev.allDevices();
+        if (currentDevices.length == 0) {
+            System.out.println("当前没有设备，无法开启并发采集与实时监控");
+            return null;
+        }
+        MonitorEngine next = new MonitorEngine();
+        next.start(currentDevices);
+        System.out.println("实时监控已开启；设备增删后请关闭并重新开启以刷新清单");
+        return next;
     }
 
     private static void queryDevices(Scanner sc) {
@@ -62,7 +66,7 @@ public class FrUi {
                     result = FrDev.findByType(sc.nextLine().trim());
                     break;
                 case "3":
-                    result = FrDev.findByStatus(chooseDeviceStatus(sc, false));
+                    result = FrDev.findByStatus(FrDev.chooseDeviceStatus(sc, false));
                     break;
                 case "4":
                     System.out.println("请输入关键字（id/型号/井场）：");
@@ -167,11 +171,17 @@ public class FrUi {
         System.out.println("本次共添加 " + added + " 台" + typeName);
     }
 
+    /** 运维任务交互层：只读取输入、调用 FrMnt 并展示结果。 */
+    
+
+
+
     public static void main(String[] args){
         System.out.println("=".repeat(30));
         System.out.println("SmartOil 油气井管理系统 v1.0");
 
         Scanner sc=new Scanner(System.in);
+        MonitorEngine monitorEngine = null;
         boolean CONTINUE=true;
 
         while (CONTINUE){
@@ -361,7 +371,7 @@ public class FrUi {
                                 String newInstallDate = sc.nextLine().trim();
                                 System.out.print("设备型号（当前：" + modifyDevice.getModel() + "，回车跳过）：");
                                 String newModel = sc.nextLine().trim();
-                                String newStatus = chooseDeviceStatus(sc, true);
+                                String newStatus = FrDev.chooseDeviceStatus(sc, true);
 
                                 try {
                                     success = FrDev.modifyById(modifyId, newWellsite, newInstallDate,
@@ -501,12 +511,10 @@ public class FrUi {
                         System.out.println("1.数据采集(需要先启动设备才能采集)");
                         System.out.println("2.实时状态");
                         System.out.println("3.单设备状态查看");
-                        System.out.println("4.并发性能自检");
+                        System.out.println("4." + (monitorEngine != null && monitorEngine.isRunning()
+                                ? "关闭" : "开启") + "并发采集与实时监控");
                         System.out.println("5.一键启动设备(非采集数据仅启动)");
                         System.out.println("6.一键关闭设备");
-                        // ======== M5 新增：菜单项 7 ========
-                        System.out.println("7.千台虚拟设备后台压测（10秒，不写入正式记录）");
-                        // ==================================
                         System.out.println("0.返回上一级");
                         System.out.println("-".repeat(30));
 
@@ -593,77 +601,20 @@ public class FrUi {
                                
                             }
 
-                            // ======== M5 新增：千级并发性能自检 ========
                             case "4":{
-                                System.out.println("\t   并发性能自检 (千级设备压测)");
-                                System.out.println("=".repeat(30));
-                                
-                                int testCount = 1000; // 测试规模提升至 1000 台！
-                                System.out.println("正在准备 " + testCount + " 台虚拟设备进行测试...");
-                                devices.Equipment[] testDevices = new devices.Equipment[testCount];
-                                for (int i = 0; i < testCount; i++) {
-                                    testDevices[i] = CentrifugalPump.createTestDevice(i + 1);
-                                    testDevices[i].setStatus("投运中");
+                                boolean wasRunning = monitorEngine != null && monitorEngine.isRunning();
+                                sc.nextLine();
+                                monitorEngine = toggleMonitoring(monitorEngine);
+                                if (!wasRunning && monitorEngine != null && monitorEngine.isRunning()) {
+                                    System.out.println("按回车停止实时报警显示（后台并发采集和报警记录继续运行）");
+                                    sc.nextLine();
+                                    monitorEngine.stopRealtimeAlarmDisplay();
+                                    System.out.println("实时报警显示已停止，后台监控仍在运行");
+                                } else {
+                                    waitForEnter(sc);
                                 }
-
-                                // 1. 单线程串行采集
-                                System.out.println("\n[开始] 单线程串行采集...");
-                                long startSingle = System.currentTimeMillis();
-                                for (devices.Equipment dev : testDevices) {
-                                    try {
-                                        Thread.sleep(5); // 每次模拟 5ms 延迟
-                                        if (dev instanceof interfaces.Collectable c) {
-                                            c.collectData();
-                                        }
-                                    } catch (Exception ignored) {}
-                                }
-                                long timeSingle = System.currentTimeMillis() - startSingle;
-                                System.out.println("单线程耗时: " + timeSingle + " ms");
-
-                                // 2. 多线程并发采集
-                                System.out.println("\n[开始] 多线程并发采集...");
-                                java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(10);
-                                java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(testCount);
-                                
-                                long startMulti = System.currentTimeMillis();
-                                for (devices.Equipment dev : testDevices) {
-                                    pool.submit(() -> {
-                                        try {
-                                            Thread.sleep(5); 
-                                            if (dev instanceof interfaces.Collectable c) {
-                                                c.collectData();
-                                            }
-                                        } catch (Exception ignored) {
-                                        } finally {
-                                            latch.countDown();
-                                        }
-                                    });
-                                }
-                                
-                                try {
-                                    latch.await(); 
-                                } catch (InterruptedException e) {
-                                    Thread.currentThread().interrupt();
-                                }
-                                pool.shutdown();
-                                
-                                long timeMulti = System.currentTimeMillis() - startMulti;
-                                System.out.println("多线程耗时: " + timeMulti + " ms");
-
-                                // 3. 打印结果
-                                System.out.println("\n=========================================");
-                                System.out.println("性能对比结果 (规模: " + testCount + "台)：");
-                                System.out.println("单线程耗时: " + timeSingle + " ms");
-                                System.out.println("多线程耗时: " + timeMulti + " ms");
-                                System.out.println("性能提升: " + String.format("%.2f", (double) timeSingle / Math.max(1, timeMulti)) + " 倍！");
-                                System.out.println("=========================================");
-
-                                System.out.println("\n按回车返回");
-                                sc.nextLine(); 
-                                sc.nextLine(); 
                                 break;
                             }
-                            // ==========================================
 
                             case "5":{
                                 sc.nextLine();
@@ -683,38 +634,6 @@ public class FrUi {
                                 break;
                             }
 
-                            // ======== M5 新增：千级后台并发压测（自动运行 10 秒） ========
-                            case "7":{
-                                sc.nextLine(); // 吃掉菜单选项的回车
-                                System.out.println("\n正在生成 1000 台虚拟设备用于后台并发压测...");
-                                
-                                Equipment[] virtualDevices = new Equipment[1000];
-                                for(int i=0; i<1000; i++) {
-                                    virtualDevices[i] = CentrifugalPump.createTestDevice(i + 1);
-                                    virtualDevices[i].setStatus("投运中");
-                                }
-                                
-                                MonitorEngine engine = new MonitorEngine(true);
-                                engine.start(virtualDevices);
-                                
-                                System.out.println("\n>>> 监控后台运行中(1000台设备高并发) <<<");
-                                System.out.println(">>> 请观察控制台每处理 100 条报警的提示信息 <<<");
-                                System.out.println(">>> 倒计时 10 秒后将自动停止...");
-                                
-                                try { 
-                                    Thread.sleep(10000); 
-                                } catch (InterruptedException e) {
-                                    Thread.currentThread().interrupt();
-                                } finally {
-                                    engine.stop();
-                                }
-                                System.out.println("\n后台压测结束！");
-                                System.out.println("\n按回车返回菜单...");
-                                sc.nextLine();
-                                break;
-                            }
-                            // ================================================================
-                            
                             default:{
                                 System.out.println("请输入正确的数字");
                                 break;
@@ -897,35 +816,102 @@ public class FrUi {
 }
 
                 case "4": {
-                    // M5 考点：运维任务队列（开发B任务）
-                    boolean continueMnt = true;
-                    while (continueMnt) {
-                        System.out.println("\t   运维任务管理 (并发安全队列)");
-                        System.out.println("=".repeat(30));
-                        System.out.println("1.查看待处理运维队列");
-                        System.out.println("2.维修工接单处理 (出队)");
-                        System.out.println("0.返回上一级");
-                        System.out.print("请输入您的选择：");
-                        
-                        // 使用 sc.next() 自动过滤掉所有多余的回车和空格，非常安全
-                        String mntChoice = sc.next(); 
-                        
-                        switch (mntChoice) {
-                            case "1":
-                                FrMnt.showTasks();
-                                break;
-                            case "2":
-                                FrMnt.processTask();
-                                break;
-                            case "0":
-                                continueMnt = false;
-                                break;
-                            default:
-                                System.out.println("请输入正确的数字！");
-                        }
+                    sc.nextLine();
+                            boolean active = true;
+        while (active) {
+            System.out.println("\t   运维任务管理");
+            System.out.println("=".repeat(30));
+            System.out.println("1.查看全部工单");
+            System.out.println("2.按状态查询工单");
+            System.out.println("3.人工创建工单");
+            System.out.println("4.分派维修人员");
+            System.out.println("5.接收工单");
+            System.out.println("6.开始维修");
+            System.out.println("7.完成工单");
+            System.out.println("0.返回上一级");
+            System.out.print("请输入您的选择：");
+
+            switch (sc.nextLine().trim()) {
+                case "1":
+                    FrMnt.printMaintenanceTasks(FrMnt.getAll());
+                    waitForEnter(sc);
+                    break;
+                case "2": {
+                    MaintenanceTask.Status status = FrMnt.chooseMaintenanceStatus(sc);
+                    if (status != null) {
+                        FrMnt.printMaintenanceTasks(FrMnt.queryByStatus(status));
                     }
-                    // 退出运维菜单时，吃掉最后的回车，防止影响主菜单
-                    sc.nextLine(); 
+                    waitForEnter(sc);
+                    break;
+                }
+                case "3": {
+                    System.out.println("请输入设备编号：");
+                    String deviceId = sc.nextLine().trim();
+                    System.out.println("请输入报修原因：");
+                    String reason = sc.nextLine().trim();
+                    try {
+                        FrDev.findById(deviceId);
+                        MaintenanceTask task = FrMnt.createTask(deviceId, null, reason);
+                        System.out.println("人工工单创建成功：" + task.getTaskId());
+                    } catch (InvalidDeviceIdException | DeviceNotFoundException
+                            | IllegalArgumentException e) {
+                        System.out.println("创建失败：" + e.getMessage());
+                    }
+                    waitForEnter(sc);
+                    break;
+                }
+                case "4": {
+                    System.out.println("请输入工单编号：");
+                    String taskId = sc.nextLine().trim();
+                    System.out.println("请输入维修人员：");
+                    String handler = sc.nextLine().trim();
+                    MaintenanceTask task = FrMnt.findById(taskId);
+                    System.out.println(FrMnt.assignTask(taskId, handler)
+                            ? "工单已分派，等待维修人员接收"
+                            : FrMnt.maintenanceFailure(task, "仅待分派工单可分派，维修人员不能为空"));
+                    waitForEnter(sc);
+                    break;
+                }
+                case "5": {
+                    System.out.println("请输入工单编号：");
+                    String taskId = sc.nextLine().trim();
+                    MaintenanceTask task = FrMnt.findById(taskId);
+                    System.out.println(FrMnt.acceptTask(taskId)
+                            ? "工单已接收"
+                            : FrMnt.maintenanceFailure(task, "仅待接收工单可接收"));
+                    waitForEnter(sc);
+                    break;
+                }
+                case "6": {
+                    System.out.println("请输入工单编号：");
+                    String taskId = sc.nextLine().trim();
+                    MaintenanceTask task = FrMnt.findById(taskId);
+                    System.out.println(FrMnt.startTask(taskId)
+                            ? "维修已开始，设备状态已改为维修中"
+                            : FrMnt.maintenanceFailure(task, "仅已接收且设备仍在库的工单可开始"));
+                    waitForEnter(sc);
+                    break;
+                }
+                case "7": {
+                    System.out.println("请输入工单编号：");
+                    String taskId = sc.nextLine().trim();
+                    System.out.println("请输入处理结果：");
+                    String result = sc.nextLine().trim();
+                    MaintenanceTask task = FrMnt.findById(taskId);
+                    System.out.println(FrMnt.completeTask(taskId, result)
+                            ? "工单已完成，设备状态已改为尚未启动"
+                            : FrMnt.maintenanceFailure(task, "仅执行中的工单可完成，处理结果不能为空"));
+                    waitForEnter(sc);
+                    break;
+                }
+                case "0":
+                    active = false;
+                    break;
+                default:
+                    System.out.println("请输入正确的数字！");
+                    break;
+            }
+        }
                     break;
                 }
                 case "5":
@@ -959,6 +945,9 @@ public class FrUi {
                     break;
             }
 
+        }
+        if (monitorEngine != null && monitorEngine.isRunning()) {
+            monitorEngine.stop();
         }
         sc.close();
     }

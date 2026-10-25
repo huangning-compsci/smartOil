@@ -54,15 +54,15 @@ public class TemperatureSensor extends MonitoringEquipment
         return DEVICES;
     }
 
-    /** FR-MON-01 模拟数据采集：常温附近随机波动，约 10% 概率超温。 */
+    /** FR-MON-01 模拟数据采集：99% 为正常温度，1% 为预警或超温数据。 */
     @Override
     public void collectData() throws DeviceNotRunningException {
         if (!isRunning()) {
             throw new DeviceNotRunningException(getId(), "温度采集");
         }
-        double base = 20 + tempRange * 0.5 * Math.random();   // 20~70 ℃ 正常区间
-        double spike = Math.random() < 0.1 ? 25 : 0;          // 偶发超温尖峰
-        this.currentTemp = base + spike;
+        this.currentTemp = Math.random() < 0.01
+                ? upperLimit * 0.9 + 0.1 + upperLimit * 0.2 * Math.random()
+                : 20 + (upperLimit * 0.9 - 20) * Math.random();
         this.hasCurrentTempData = true;
         this.lastCollectedTime = java.time.LocalDateTime.now();
 

@@ -1,3 +1,4 @@
+package Task;
 import devices.Equipment;
 import exceptions.AlarmException;
 import interfaces.Alarmable;

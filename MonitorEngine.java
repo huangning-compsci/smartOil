@@ -5,24 +5,18 @@ import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import Task.DataCollectionTask;
+
 public class MonitorEngine {
     // 保存本轮报警结果，而不是下一轮可能被改写的设备对象。
     private final BlockingQueue<AlarmException> alarmQueue = new LinkedBlockingQueue<>(100);
     private final ScheduledExecutorService collectPool = Executors.newScheduledThreadPool(10);
     private final Map<String, String> deviceStatusMap = new ConcurrentHashMap<>();
     private final AtomicInteger alarmCounter = new AtomicInteger();
-    private final boolean testMode;
+    private final Object alarmDisplayLock = new Object();
     private volatile boolean running;
+    private volatile boolean realtimeAlarmDisplayEnabled = true;
     private Thread consumerThread;
-
-    public MonitorEngine() {
-        this(false);
-    }
-
-    /** 压测模式只统计报警，不写入正式报警库和运维队列。 */
-    public MonitorEngine(boolean testMode) {
-        this.testMode = testMode;
-    }
 
     /** 一个引擎只启动一次；每台设备完成一轮后，间隔一秒再次采集。 */
     public synchronized void start(Equipment[] devices) {
@@ -42,8 +36,18 @@ public class MonitorEngine {
                     new DataCollectionTask(device, alarmQueue, deviceStatusMap),
                     0, 1, TimeUnit.SECONDS);
         }
-        System.out.println("[系统] 并发监控引擎已启动，每台设备每轮采集间隔 1 秒"
-                + (testMode ? "（压测模式，数据不写入正式记录）" : ""));
+        System.out.println("[系统] 并发监控引擎已启动，每台设备每轮采集间隔 1 秒");
+    }
+
+    public boolean isRunning() {
+        return running;
+    }
+
+    /** 只停止控制台实时报警输出，采集、报警入库和运维任务继续运行。 */
+    public void stopRealtimeAlarmDisplay() {
+        synchronized (alarmDisplayLock) {
+            realtimeAlarmDisplayEnabled = false;
+        }
     }
 
     private void consumeAlarms() {
@@ -54,15 +58,15 @@ public class MonitorEngine {
                 if (event == null) {
                     continue;
                 }
-                if (!testMode) {
-                    alarm.AlarmLog.record(event);
-                    FrMnt.addTask("设备 " + event.getDeviceId() + " 异常：" + event.getDescription());
+                Task.AlarmRecord record = Task.AlarmLog.record(event);
+                synchronized (alarmDisplayLock) {
+                    if (realtimeAlarmDisplayEnabled) {
+                        System.out.printf("[实时报警] %s | 设备 %s | %s%n",
+                                record.getAlarmTime(), event.getDeviceId(), event.getDescription());
+                    }
                 }
-                int count = alarmCounter.incrementAndGet();
-                if (count % 100 == 0) {
-                    System.out.println("[监控引擎] 已处理 " + count + " 条报警"
-                            + (testMode ? "（仅压测统计）" : ""));
-                }
+                FrMnt.createFromAlarm(record);
+                alarmCounter.incrementAndGet();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return;

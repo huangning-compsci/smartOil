@@ -8,7 +8,7 @@ import exceptions.AlarmException;
 import exceptions.DeviceNotRunningException;
 import interfaces.Alarmable;
 import interfaces.Collectable;
-import interfaces.Maintainable;
+
 
 /**
  * 抽油机：实现 Collectable + Alarmable + Maintainable 三个接口。
@@ -24,7 +24,7 @@ import interfaces.Maintainable;
  * Maintainable：支撑 FR-ALM-04 可选功能"报警确认后自动生成运维任务"。
  */
 public class PumpingUnit extends ProductionEquipment
-        implements Collectable, Alarmable, Maintainable {
+        implements Collectable, Alarmable {
 
     private double ratedPower;
     private double stroke;
@@ -34,7 +34,6 @@ public class PumpingUnit extends ProductionEquipment
     private java.time.LocalDateTime lastCollectedTime;
     private double ratedLoad;
     private boolean underMaintenance;   // 是否维修中（Maintainable）
-    private static int mntSeq;          // 运维工单编号自增序号
     private static final String NAME = "PU";
     private static int index;
     private static final DeviceArray<PumpingUnit> DEVICES =
@@ -69,8 +68,7 @@ public class PumpingUnit extends ProductionEquipment
     }
 
     /**
-     * FR-MON-01 模拟数据采集：载荷在额定值的 60%~110% 之间波动，
-     * 约 10% 概率超载到 120% 以上（便于演示报警）。
+     * FR-MON-01 模拟数据采集：99% 为正常载荷，1% 为超载报警数据。
      * 未启动时抛 DeviceNotRunningException。
      */
     @Override
@@ -78,10 +76,9 @@ public class PumpingUnit extends ProductionEquipment
         if (!isRunning()) {
             throw new DeviceNotRunningException(getId(), "载荷采集");
         }
-        double ratio = 0.6 + 0.5 * Math.random();          // 0.6~1.1 正常区间
-        if (Math.random() < 0.1) {
-            ratio = 1.2 + 0.2 * Math.random();             // 偶发超载 1.2~1.4
-        }
+        double ratio = Math.random() < 0.01
+                ? 1.01 + 0.39 * Math.random()              // 1.01~1.40，必然报警
+                : 0.60 + 0.40 * Math.random();             // 0.60~1.00，正常区间
         this.currentLoad = ratedLoad * ratio;
         this.hasLoadData = true;
         this.lastCollectedTime = java.time.LocalDateTime.now();
@@ -158,19 +155,9 @@ public class PumpingUnit extends ProductionEquipment
     }
 
     /** FR-MNT-01 / FR-ALM-04：为设备创建维修工单，返回工单编号。 */
-    @Override
-    public String requestMaintenance(String reason) {
-        this.underMaintenance = true;
-        String orderId = "MNT_" + (++mntSeq);
-        System.out.println("已自动生成运维工单 " + orderId + "：设备 " + getId()
-                + "，报修原因：" + reason);
-        return orderId;
-    }
+   
 
-    @Override
-    public boolean isUnderMaintenance() {
-        return underMaintenance;
-    }
+    
 
     public void run(Scanner sc){
         System.out.println("请选择档位:1.慢速/2.正常/3.全速(输入对应数字)");
