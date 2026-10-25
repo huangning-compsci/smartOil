@@ -63,7 +63,7 @@ public class MonitorEngine {
                                 record.getAlarmTime(), event.getDeviceId(), event.getDescription());
                     }
                 }
-                FrMnt.addTask("设备 " + event.getDeviceId() + " 异常：" + event.getDescription());
+                FrMnt.createFromAlarm(record);
                 alarmCounter.incrementAndGet();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
