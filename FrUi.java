@@ -610,9 +610,17 @@ public class FrUi {
                             }
 
                             case "4":{
+                                boolean wasRunning = monitorEngine != null && monitorEngine.isRunning();
                                 sc.nextLine();
                                 monitorEngine = toggleMonitoring(monitorEngine);
-                                waitForEnter(sc);
+                                if (!wasRunning && monitorEngine != null && monitorEngine.isRunning()) {
+                                    System.out.println("按回车停止实时报警显示（后台并发采集和报警记录继续运行）");
+                                    sc.nextLine();
+                                    monitorEngine.stopRealtimeAlarmDisplay();
+                                    System.out.println("实时报警显示已停止，后台监控仍在运行");
+                                } else {
+                                    waitForEnter(sc);
+                                }
                                 break;
                             }
 

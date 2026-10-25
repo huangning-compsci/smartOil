@@ -11,7 +11,9 @@ public class MonitorEngine {
     private final ScheduledExecutorService collectPool = Executors.newScheduledThreadPool(10);
     private final Map<String, String> deviceStatusMap = new ConcurrentHashMap<>();
     private final AtomicInteger alarmCounter = new AtomicInteger();
+    private final Object alarmDisplayLock = new Object();
     private volatile boolean running;
+    private volatile boolean realtimeAlarmDisplayEnabled = true;
     private Thread consumerThread;
 
     /** 一个引擎只启动一次；每台设备完成一轮后，间隔一秒再次采集。 */
@@ -39,6 +41,13 @@ public class MonitorEngine {
         return running;
     }
 
+    /** 只停止控制台实时报警输出，采集、报警入库和运维任务继续运行。 */
+    public void stopRealtimeAlarmDisplay() {
+        synchronized (alarmDisplayLock) {
+            realtimeAlarmDisplayEnabled = false;
+        }
+    }
+
     private void consumeAlarms() {
         // 停止调度后，仍等待在途采集结束，并处理完已经入队的报警。
         while (running || !collectPool.isTerminated() || !alarmQueue.isEmpty()) {
@@ -48,8 +57,12 @@ public class MonitorEngine {
                     continue;
                 }
                 alarm.AlarmRecord record = alarm.AlarmLog.record(event);
-                System.out.printf("[实时报警] %s | 设备 %s | %s%n",
-                        record.getAlarmTime(), event.getDeviceId(), event.getDescription());
+                synchronized (alarmDisplayLock) {
+                    if (realtimeAlarmDisplayEnabled) {
+                        System.out.printf("[实时报警] %s | 设备 %s | %s%n",
+                                record.getAlarmTime(), event.getDeviceId(), event.getDescription());
+                    }
+                }
                 FrMnt.addTask("设备 " + event.getDeviceId() + " 异常：" + event.getDescription());
                 alarmCounter.incrementAndGet();
             } catch (InterruptedException e) {
