@@ -1,12 +1,11 @@
-package devices;
+
 import exceptions.AlarmException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import FrMnt;
 import Task.DataCollectionTask;
+import devices.Equipment;
 
 public class MonitorEngine {
     // 保存本轮报警结果，而不是下一轮可能被改写的设备对象。
