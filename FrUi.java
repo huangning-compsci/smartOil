@@ -20,16 +20,8 @@ import Task.MaintenanceTask;
 
 public class FrUi {
     
-    private static void showResults(Scanner sc, Equipment[] results) {
-    if (results.length == 0) System.out.println("没有符合条件的设备");
-    else {
-        System.out.println("共找到 " + results.length + " 台设备：");
-        System.out.println(FrDev.showInfo(results));
-    }
-    waitForEnter(sc);
-    }
-
-    private static void waitForEnter(Scanner sc) {
+    
+    public static void waitForEnter(Scanner sc) {
         System.out.println("按回车返回");
         sc.nextLine();
     }
@@ -51,77 +43,7 @@ public class FrUi {
         return next;
     }
 
-    private static void queryDevices(Scanner sc) {
-        System.out.println("1.按编号查询\n2.按类型查询\n3.按状态查询\n4.模糊查询（id/型号/井场）");
-        String choice = sc.nextLine().trim();
-        try {
-            Equipment[] result;
-            switch (choice) {
-                case "1":
-                    System.out.println("请输入设备id,例如 PU_1:");
-                    result = new Equipment[]{FrDev.findById(sc.nextLine().trim())};
-                    break;
-                case "2":
-                    System.out.println("请输入设备类型（PU/CP/PS/TS/FM/CM、英文类型名或中文名）：");
-                    result = FrDev.findByType(sc.nextLine().trim());
-                    break;
-                case "3":
-                    result = FrDev.findByStatus(FrDev.chooseDeviceStatus(sc, false));
-                    break;
-                case "4":
-                    System.out.println("请输入关键字（id/型号/井场）：");
-                    result = FrDev.fuzzyFind(sc.nextLine());
-                    break;
-                default:
-                    System.out.println("请输入正确的数字！");
-                    return;
-            }
-            showResults(sc, result);
-        } catch (InvalidDeviceIdException | DeviceNotFoundException | IllegalArgumentException e) {
-            System.out.println(e.getMessage());
-            waitForEnter(sc);
-        }
-    }
-
-    private static void sortDevices(Scanner sc) {
-        System.out.println("1.按设备编号排序\n2.按运行状态排序\n3.按安装日期排序");
-        java.util.Comparator<Equipment> comparator = switch (sc.nextLine().trim()) {
-            case "1" -> devices.DeviceSort.BY_ID;
-            case "2" -> devices.DeviceSort.BY_STATUS;
-            case "3" -> devices.DeviceSort.BY_INSTALL_DATE;
-            default -> null;
-        };
-        if (comparator == null) {
-            System.out.println("请输入正确的数字！");
-            return;
-        }
-        System.out.println("1.升序  2.降序");
-        String direction = sc.nextLine().trim();
-        while (!"1".equals(direction) && !"2".equals(direction)) {
-            System.out.println("请输入 1 或 2！");
-            direction = sc.nextLine().trim();
-        }
-        showResults(sc, devices.DeviceSort.sorted(FrDev.allDevices(), comparator, "1".equals(direction)));
-    }
-
-    private static void filterDevices(Scanner sc) {
-        System.out.println("1.筛选运行中设备\n2.筛选故障设备\n3.按设备类型筛选");
-        String choice = sc.nextLine().trim();
-        Equipment[] result;
-        switch (choice) {
-            case "1": result = FrDev.findByStatus("投运中"); break;
-            case "2": result = FrDev.findByStatus("故障"); break;
-            case "3":
-                System.out.println("请输入设备类型：");
-                result = FrDev.findByType(sc.nextLine().trim());
-                break;
-            default:
-                System.out.println("请输入正确的数字！");
-                return;
-        }
-        showResults(sc, result);
-    }
-
+    
     private interface AddAction {  
         void accept(String wellsite, String installDate, String model) throws DeviceArrayFullException;
     }
@@ -339,7 +261,7 @@ public class FrUi {
                             break;
                         case "2":
                             sc.nextLine();
-                            queryDevices(sc);
+                            FrRpt.queryDevices(sc);
                             break;
 
 
@@ -475,11 +397,11 @@ public class FrUi {
                             break;
                         case "8":
                             sc.nextLine();
-                            sortDevices(sc);
+                            FrRpt.sortDevices(sc);
                             break;
                         case "9":
                             sc.nextLine();
-                            filterDevices(sc);
+                            FrRpt.filterDevices(sc);
                             break;
                         case "0": {
                             sc.nextLine();
@@ -747,8 +669,7 @@ public class FrUi {
                         System.out.println("请输入正确的数字！");
                         break;
                 }
-                System.out.println("按任意键继续");
-                sc.next();sc.nextLine();
+                waitForEnter(sc);
                 break;
             }
             case "4": {
@@ -815,10 +736,10 @@ public class FrUi {
     break;
 }
 
-                case "4": {
-                    sc.nextLine();
-                            boolean active = true;
-        while (active) {
+            case "4": {
+        sc.nextLine();
+        boolean continue4_ = true;
+        while (continue4_) {
             System.out.println("\t   运维任务管理");
             System.out.println("=".repeat(30));
             System.out.println("1.查看全部工单");
@@ -905,7 +826,7 @@ public class FrUi {
                     break;
                 }
                 case "0":
-                    active = false;
+                    continue4_ = false;
                     break;
                 default:
                     System.out.println("请输入正确的数字！");
@@ -915,7 +836,126 @@ public class FrUi {
                     break;
                 }
                 case "5":
-                    //数据统计与报表
+            sc.nextLine();
+            boolean continue5_=true;
+            while(continue5_){
+                System.out.println("\t   数据报表");
+                System.out.println("=".repeat(30));
+                System.out.println("1.设备统计");
+                System.out.println("2.报警统计");
+                System.out.println("3.运维统计");
+                System.out.println("4.报表生成");
+                System.out.println("0.返回上一级");
+                System.out.println("请输入操作对应的数字:");
+                switch (sc.next()) {
+                    case "1":
+                        System.out.println("\t   数据报表");
+                        System.out.println("=".repeat(30));
+                        System.out.println("1.按设备类型统计");
+                        System.out.println("2.按设备状态统计");
+                        System.out.println("3.设备可用率统计");
+                        System.out.println("请输入数字:");
+                        switch (sc.next()) {
+                            case "1":
+                                sc.nextLine();
+                                System.out.println("请输入设备类型：");
+                                Equipment[] result = FrDev.findByType(sc.nextLine().trim());
+                                FrRpt.showResults(sc, result);
+                                break;
+                            case "2":
+                                sc.nextLine();
+                                FrRpt.filterDevices(sc);
+                                break;
+                            case "3":
+                                sc.nextLine();
+                                System.out.println("设备可用率为:"+
+                                (double)FrDev.findByStatus("投运中").length/FrDev.allDevices().length);
+                                waitForEnter(sc);
+                                break;
+                            default:
+                                System.out.println("请输入正确的数字!");
+                                waitForEnter(sc);
+                                break;
+                        }
+                        break;
+                    case "2":
+                        //报警
+                sc.nextLine();
+                System.out.println("\t   报警统计");
+                System.out.println("=".repeat(30));
+                System.out.println("1.全部报警");
+                System.out.println("2.按报警状态统计");
+                System.out.println("3.按报警等级统计");
+                System.out.println("4.按设备编号统计");
+                System.out.println("5.按时间范围统计");
+                System.out.println("6.报警处理率统计");
+                System.out.println("请输入您的选择：");
+                switch (sc.next()) {
+                    case "1":
+                        AlarmLog.print(AlarmLog.query(null, null, null, null, null));
+                        break;
+                    case "2": {
+                        AlarmRecord.Status st = FrAlm.chooseStatus(sc);
+                        if (st != null) {
+                            AlarmLog.print(AlarmLog.query(st, null, null, null, null));
+                        }
+                        break;
+                    }
+                    case "3": {
+                        AlarmException.Level lv = FrAlm.chooseLevel(sc);
+                        if (lv != null) {
+                            AlarmLog.print(AlarmLog.query(null, lv, null, null, null));
+                        }
+                        break;
+                    }
+                    case "4": {
+                        sc.nextLine();
+                        System.out.println("请输入设备编号，例如 PS_1:");
+                        String queryId = sc.nextLine().trim();
+                        AlarmLog.print(AlarmLog.query(null, null, queryId, null, null));
+                        break;
+                    }
+                    case "5": {
+                        sc.nextLine();
+                        System.out.println("请输入开始日期（yyyy-MM-dd，回车表示不限）：");
+                        String fromStr = sc.nextLine().trim();
+                        System.out.println("请输入结束日期（yyyy-MM-dd，回车表示不限）：");
+                        String toStr = sc.nextLine().trim();
+                        try {
+                            LocalDateTime from = fromStr.isEmpty() ? null
+                                    : LocalDate.parse(fromStr).atStartOfDay();
+                            LocalDateTime to = toStr.isEmpty() ? null
+                                    : LocalDate.parse(toStr).plusDays(1).atStartOfDay().minusSeconds(1);
+                            AlarmLog.print(AlarmLog.query(null, null, null, from, to));
+                        } catch (java.time.format.DateTimeParseException e) {
+                            System.out.println("日期格式错误，请按 yyyy-MM-dd 输入");
+                        }
+                        break;
+                    }
+                    case "6":
+                        System.out.println("报警处理率为:"+AlarmLog.getRecordNumber());
+                    default:
+                        System.out.println("请输入正确的数字！");
+                        break;
+                }
+                waitForEnter(sc);
+                break;
+                    case "3":
+                        sc.nextLine();
+                        
+                        //运维
+                        break;
+                    case "4":
+                        sc.nextLine();
+                        //报表生成
+                        break;
+                    default:
+                        System.out.println("请输入正确的数字");
+                        waitForEnter(sc);
+                        break;
+                }
+            }
+                    
                     break;
                 case "0":
                     //退出系统
