@@ -1,4 +1,5 @@
 import devices.Equipment;
+import exceptions.AlarmException;
 import exceptions.DeviceNotFoundException;
 import exceptions.InvalidDeviceIdException;
 import java.util.List;
@@ -14,7 +15,7 @@ public class FrMnt {
             java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     /** 创建人工工单或报警工单；同一报警只会关联一张工单。 */
     public static synchronized MaintenanceTask createTask(
-            String deviceId, String alarmId, String reason) {
+            String deviceId, String alarmId, String reason,AlarmException.Level level) {
         if (alarmId != null && !alarmId.isBlank()) {
             for (MaintenanceTask task : TASKS) {
                 if (alarmId.trim().equalsIgnoreCase(task.getAlarmId())) {
@@ -22,7 +23,7 @@ public class FrMnt {
                 }
             }
         }
-        MaintenanceTask task = new MaintenanceTask(deviceId, alarmId, reason);
+        MaintenanceTask task = new MaintenanceTask(deviceId, alarmId, reason, level);
         TASKS.add(task);
         return task;
     }
@@ -32,7 +33,7 @@ public class FrMnt {
             throw new IllegalArgumentException("报警记录不能为空");
         }
         return createTask(alarm.getDeviceId(), alarm.getAlarmId(),
-                "[" + alarm.getLevel() + "] " + alarm.getDescription());
+                "[" + alarm.getLevel() + "] " + alarm.getDescription(),alarm.getLevelEnum());
     }
 
     public static List<MaintenanceTask> getAll() {
@@ -57,6 +58,16 @@ public class FrMnt {
         }
         return TASKS.stream()
                 .filter(task -> task.getStatusEnum() == status)
+                .toList();
+    }
+
+    //按等级
+    public static List<MaintenanceTask> queryByLevel(AlarmException.Level level) {
+        if (level == null) {
+            return getAll();
+        }
+        return TASKS.stream()
+                .filter(task -> task.getLevelEnum() == level)
                 .toList();
     }
 
@@ -138,5 +149,18 @@ public class FrMnt {
     public static String maintenanceFailure(MaintenanceTask task, String rule) {
         return task == null ? "操作失败：未找到工单" :
                 "操作失败：" + rule + "（当前状态：" + task.getStatus() + "）";
+    }
+
+    public static double getRate(){
+        return queryByStatus(MaintenanceTask.Status.COMPLETED).size()/TASKS.size();
+    }
+
+    /** 已完成工单从创建到完成的平均时长，单位为秒；无已完成工单时返回 0。 */
+    public static double getAverageProcessingTime() {
+        return queryByStatus(MaintenanceTask.Status.COMPLETED).stream()
+                .mapToDouble(task -> java.time.Duration.between(
+                        task.getCreateTime(), task.getFinishTime()).toMillis() / 1000.0)
+                .average()
+                .orElse(0.0);
     }
 }
