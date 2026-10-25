@@ -63,7 +63,7 @@ public class Compressor extends FluidTransportEquipment
     /**
      * FR-MON-01 模拟数据采集。
      * 修复原 bug：(int)Math.random() 恒为 0，应写成 (int)(Math.random()*范围+基数)。
-     * 95% 生成正常排气参数，5% 生成压力或流量越限数据。
+     * 99% 生成正常排气参数，1% 生成压力或流量越限数据。
      */
     @Override
     public void collectData() throws DeviceNotRunningException {
@@ -72,7 +72,7 @@ public class Compressor extends FluidTransportEquipment
         }
         this.exhaustPressure = (int) (Math.random() * 150 + 650) / 100.0;      // 6.50~7.99 正常
         this.exhaustFlow = (int) (Math.random() * 90 + 250) / 100.0;           // 2.50~3.39 正常
-        if (Math.random() < 0.05) {
+        if (Math.random() < 0.01) {
             double faultType = Math.random();
             if (faultType < 1.0 / 3.0) {
                 this.exhaustPressure = (int) (Math.random() * 50 + 600) / 100.0; // 6.00~6.49

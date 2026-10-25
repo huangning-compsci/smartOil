@@ -56,13 +56,13 @@ public class FlowMeter extends MonitoringEquipment
         return DEVICES;
     }
 
-    /** FR-MON-01 模拟数据采集：95% 为正常流量，5% 为过高或过低流量。 */
+    /** FR-MON-01 模拟数据采集：99% 为正常流量，1% 为过高或过低流量。 */
     @Override
     public void collectData() throws DeviceNotRunningException {
         if (!isRunning()) {
             throw new DeviceNotRunningException(getId(), "流量采集");
         }
-        if (Math.random() < 0.05) {
+        if (Math.random() < 0.01) {
             this.currentFlow = Math.random() < 0.5
                     ? 1.00 + 0.50 * Math.random()
                     : 4.51 + 1.49 * Math.random();

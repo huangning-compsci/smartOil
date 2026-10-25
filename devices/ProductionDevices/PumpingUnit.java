@@ -69,7 +69,7 @@ public class PumpingUnit extends ProductionEquipment
     }
 
     /**
-     * FR-MON-01 模拟数据采集：95% 为正常载荷，5% 为超载报警数据。
+     * FR-MON-01 模拟数据采集：99% 为正常载荷，1% 为超载报警数据。
      * 未启动时抛 DeviceNotRunningException。
      */
     @Override
@@ -77,7 +77,7 @@ public class PumpingUnit extends ProductionEquipment
         if (!isRunning()) {
             throw new DeviceNotRunningException(getId(), "载荷采集");
         }
-        double ratio = Math.random() < 0.05
+        double ratio = Math.random() < 0.01
                 ? 1.01 + 0.39 * Math.random()              // 1.01~1.40，必然报警
                 : 0.60 + 0.40 * Math.random();             // 0.60~1.00，正常区间
         this.currentLoad = ratedLoad * ratio;

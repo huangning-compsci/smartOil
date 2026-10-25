@@ -62,7 +62,7 @@ public class PressureSensor extends MonitoringEquipment
     }
 
     /**
-     * FR-MON-01 模拟数据采集：95% 在上下限内，5% 生成高压或低压报警数据。
+     * FR-MON-01 模拟数据采集：99% 在上下限内，1% 生成高压或低压报警数据。
      * 未启动时抛 DeviceNotRunningException。
      */
     @Override
@@ -70,7 +70,7 @@ public class PressureSensor extends MonitoringEquipment
         if (!isRunning()) {
             throw new DeviceNotRunningException(getId(), "压力采集");
         }
-        if (Math.random() < 0.05) {
+        if (Math.random() < 0.01) {
             this.currentPressure = Math.random() < 0.5
                     ? lowerLimit * Math.random()
                     : upperLimit + 0.01 + 0.49 * Math.random();

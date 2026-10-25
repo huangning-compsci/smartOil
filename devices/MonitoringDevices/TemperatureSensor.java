@@ -54,13 +54,13 @@ public class TemperatureSensor extends MonitoringEquipment
         return DEVICES;
     }
 
-    /** FR-MON-01 模拟数据采集：95% 为正常温度，5% 为预警或超温数据。 */
+    /** FR-MON-01 模拟数据采集：99% 为正常温度，1% 为预警或超温数据。 */
     @Override
     public void collectData() throws DeviceNotRunningException {
         if (!isRunning()) {
             throw new DeviceNotRunningException(getId(), "温度采集");
         }
-        this.currentTemp = Math.random() < 0.05
+        this.currentTemp = Math.random() < 0.01
                 ? upperLimit * 0.9 + 0.1 + upperLimit * 0.2 * Math.random()
                 : 20 + (upperLimit * 0.9 - 20) * Math.random();
         this.hasCurrentTempData = true;
