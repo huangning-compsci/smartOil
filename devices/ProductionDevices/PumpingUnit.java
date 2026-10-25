@@ -8,7 +8,7 @@ import exceptions.AlarmException;
 import exceptions.DeviceNotRunningException;
 import interfaces.Alarmable;
 import interfaces.Collectable;
-import interfaces.Maintainable;
+
 
 /**
  * 抽油机：实现 Collectable + Alarmable + Maintainable 三个接口。
@@ -24,7 +24,7 @@ import interfaces.Maintainable;
  * Maintainable：支撑 FR-ALM-04 可选功能"报警确认后自动生成运维任务"。
  */
 public class PumpingUnit extends ProductionEquipment
-        implements Collectable, Alarmable, Maintainable {
+        implements Collectable, Alarmable {
 
     private double ratedPower;
     private double stroke;
@@ -34,7 +34,6 @@ public class PumpingUnit extends ProductionEquipment
     private java.time.LocalDateTime lastCollectedTime;
     private double ratedLoad;
     private boolean underMaintenance;   // 是否维修中（Maintainable）
-    private static int mntSeq;          // 运维工单编号自增序号
     private static final String NAME = "PU";
     private static int index;
     private static final DeviceArray<PumpingUnit> DEVICES =
@@ -156,19 +155,9 @@ public class PumpingUnit extends ProductionEquipment
     }
 
     /** FR-MNT-01 / FR-ALM-04：为设备创建维修工单，返回工单编号。 */
-    @Override
-    public String requestMaintenance(String reason) {
-        this.underMaintenance = true;
-        String orderId = "MNT_" + (++mntSeq);
-        System.out.println("已自动生成运维工单 " + orderId + "：设备 " + getId()
-                + "，报修原因：" + reason);
-        return orderId;
-    }
+   
 
-    @Override
-    public boolean isUnderMaintenance() {
-        return underMaintenance;
-    }
+    
 
     public void run(Scanner sc){
         System.out.println("请选择档位:1.慢速/2.正常/3.全速(输入对应数字)");
