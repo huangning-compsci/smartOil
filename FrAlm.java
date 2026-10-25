@@ -1,5 +1,3 @@
-import alarm.AlarmLog;
-import alarm.AlarmRecord;
 import devices.Equipment;
 import exceptions.AlarmException;
 import exceptions.DeviceNotFoundException;
@@ -7,8 +5,11 @@ import exceptions.DeviceNotRunningException;
 import exceptions.InvalidDeviceIdException;
 import interfaces.Alarmable;
 import interfaces.Collectable;
-import interfaces.Maintainable;
 import java.util.Scanner;
+
+import Task.AlarmLog;
+import Task.AlarmRecord;
+import Task.MaintenanceTask;
 
 public class FrAlm {
     /** 兼容原调用方，返回本轮报警数量。 */
@@ -61,19 +62,10 @@ public class FrAlm {
         }
         return "该设备类型不支持报警检测";
     }
-    /** FR-ALM-04 可选功能：报警确认后，若设备具备运维能力（Maintainable）则自动生成运维工单。 */
+    /** 报警确认时返回其关联工单；已自动建单的报警不会重复创建。 */
     public static String generateMaintenanceIfSupported(AlarmRecord rec) {
-        try {
-            Equipment dev = FrDev.findById(rec.getDeviceId());
-            if (dev instanceof Maintainable m) {
-                m.requestMaintenance("[" + rec.getLevel() + "] " + rec.getDescription());
-                return "";
-            } else {
-                return "（该设备类型不支持自动运维工单，请人工安排检修）";
-            }
-        } catch (InvalidDeviceIdException | DeviceNotFoundException e) {
-            return "（设备 " + rec.getDeviceId() + " 已不在库中，跳过自动运维工单）";
-        }
+        MaintenanceTask task = FrMnt.createFromAlarm(rec);
+        return "（已关联运维工单 " + task.getTaskId() + "）";
     }
 
     /** FR-ALM-03：选择报警状态，输入无效返回 null。 */
