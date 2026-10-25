@@ -429,17 +429,21 @@ public class FrUi {
                     while (continue2_){
                         boolean continue2_1=true;
                 
-                        System.out.println("请输入你要执行的操作");
-                        System.out.println("1.数据采集(需要先启动设备才能采集)");
-                        System.out.println("2.实时状态");
+                        
+                        System.out.println("\t   数据采集");
+                        System.out.println("=".repeat(30));
+                        System.out.println("1.手动单次采集");
+                        System.out.println("2.查看最新采集数据");
                         System.out.println("3.单设备状态查看");
                         System.out.println("4." + (monitorEngine != null && monitorEngine.isRunning()
                                 ? "关闭" : "开启") + "并发采集与实时监控");
-                        System.out.println("5.一键启动设备(非采集数据仅启动)");
+                        System.out.println("5.一键启动设备");
                         System.out.println("6.一键关闭设备");
                         System.out.println("0.返回上一级");
+                        
+                        System.out.println("温馨提醒:采集数据之前要先确保设备已启动");
+                        System.out.println("请输入你要执行的操作:");
                         System.out.println("-".repeat(30));
-
 
 
                         switch(sc.next()){
@@ -529,6 +533,7 @@ public class FrUi {
                                 monitorEngine = toggleMonitoring(monitorEngine);
                                 if (!wasRunning && monitorEngine != null && monitorEngine.isRunning()) {
                                     System.out.println("按回车停止实时报警显示（后台并发采集和报警记录继续运行）");
+                                    
                                     sc.nextLine();
                                     monitorEngine.stopRealtimeAlarmDisplay();
                                     System.out.println("实时报警显示已停止，后台监控仍在运行");

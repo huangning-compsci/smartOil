@@ -41,6 +41,7 @@ public class FrMon {
     /** 批量采集，非投运设备由接口调度方法跳过并提示。 */
     public static void collectAll(Equipment... devices) {
         Collectable.collectAll(allCollectables(devices));
+        
     }
     /** 全部设备的简明实时台账，只查看，不采集。 */
     public static void showAll(Equipment... devices) {
