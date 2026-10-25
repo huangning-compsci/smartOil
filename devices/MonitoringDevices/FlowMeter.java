@@ -56,13 +56,19 @@ public class FlowMeter extends MonitoringEquipment
         return DEVICES;
     }
 
-    /** FR-MON-01 模拟数据采集：瞬时流量 1.00~6.00，并累加总流量。 */
+    /** FR-MON-01 模拟数据采集：95% 为正常流量，5% 为过高或过低流量。 */
     @Override
     public void collectData() throws DeviceNotRunningException {
         if (!isRunning()) {
             throw new DeviceNotRunningException(getId(), "流量采集");
         }
-        this.currentFlow = (int) (Math.random() * 500 + 100) / 100.0;
+        if (Math.random() < 0.05) {
+            this.currentFlow = Math.random() < 0.5
+                    ? 1.00 + 0.50 * Math.random()
+                    : 4.51 + 1.49 * Math.random();
+        } else {
+            this.currentFlow = 1.50 + 3.00 * Math.random();
+        }
         this.totalFlow += currentFlow;
         this.hasCurrentFlowData = true;
         this.hasTotalFlowData = true;

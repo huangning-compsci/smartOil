@@ -63,19 +63,25 @@ public class Compressor extends FluidTransportEquipment
     /**
      * FR-MON-01 模拟数据采集。
      * 修复原 bug：(int)Math.random() 恒为 0，应写成 (int)(Math.random()*范围+基数)。
-     * 排气压力约 25% 概率越出 6.5~8.0 安全范围，用于演示报警。
+     * 95% 生成正常排气参数，5% 生成压力或流量越限数据。
      */
     @Override
     public void collectData() throws DeviceNotRunningException {
         if (!isRunning()) {
             throw new DeviceNotRunningException(getId(), "排气参数采集");
         }
-        if (Math.random() < 0.75) {
-            this.exhaustPressure = (int) (Math.random() * 150 + 650) / 100.0;  // 6.50~8.00 正常
-        } else {
-            this.exhaustPressure = (int) (Math.random() * 160 + 600) / 100.0;  // 6.00~7.60 可能越限
+        this.exhaustPressure = (int) (Math.random() * 150 + 650) / 100.0;      // 6.50~7.99 正常
+        this.exhaustFlow = (int) (Math.random() * 90 + 250) / 100.0;           // 2.50~3.39 正常
+        if (Math.random() < 0.05) {
+            double faultType = Math.random();
+            if (faultType < 1.0 / 3.0) {
+                this.exhaustPressure = (int) (Math.random() * 50 + 600) / 100.0; // 6.00~6.49
+            } else if (faultType < 2.0 / 3.0) {
+                this.exhaustPressure = (int) (Math.random() * 50 + 801) / 100.0; // 8.01~8.50
+            } else {
+                this.exhaustFlow = (int) (Math.random() * 30 + 220) / 100.0;     // 2.20~2.49
+            }
         }
-        this.exhaustFlow = (int) (Math.random() * 120 + 220) / 100.0;          // 2.20~3.40
         this.hasExhaustPressureData = true;
         this.hasExhaustFlowData = true;
         this.lastCollectedTime = java.time.LocalDateTime.now();
