@@ -11,18 +11,8 @@ public class MonitorEngine {
     private final ScheduledExecutorService collectPool = Executors.newScheduledThreadPool(10);
     private final Map<String, String> deviceStatusMap = new ConcurrentHashMap<>();
     private final AtomicInteger alarmCounter = new AtomicInteger();
-    private final boolean testMode;
     private volatile boolean running;
     private Thread consumerThread;
-
-    public MonitorEngine() {
-        this(false);
-    }
-
-    /** 压测模式只统计报警，不写入正式报警库和运维队列。 */
-    public MonitorEngine(boolean testMode) {
-        this.testMode = testMode;
-    }
 
     /** 一个引擎只启动一次；每台设备完成一轮后，间隔一秒再次采集。 */
     public synchronized void start(Equipment[] devices) {
@@ -42,8 +32,11 @@ public class MonitorEngine {
                     new DataCollectionTask(device, alarmQueue, deviceStatusMap),
                     0, 1, TimeUnit.SECONDS);
         }
-        System.out.println("[系统] 并发监控引擎已启动，每台设备每轮采集间隔 1 秒"
-                + (testMode ? "（压测模式，数据不写入正式记录）" : ""));
+        System.out.println("[系统] 并发监控引擎已启动，每台设备每轮采集间隔 1 秒");
+    }
+
+    public boolean isRunning() {
+        return running;
     }
 
     private void consumeAlarms() {
@@ -54,15 +47,11 @@ public class MonitorEngine {
                 if (event == null) {
                     continue;
                 }
-                if (!testMode) {
-                    alarm.AlarmLog.record(event);
-                    FrMnt.addTask("设备 " + event.getDeviceId() + " 异常：" + event.getDescription());
-                }
-                int count = alarmCounter.incrementAndGet();
-                if (count % 100 == 0) {
-                    System.out.println("[监控引擎] 已处理 " + count + " 条报警"
-                            + (testMode ? "（仅压测统计）" : ""));
-                }
+                alarm.AlarmRecord record = alarm.AlarmLog.record(event);
+                System.out.printf("[实时报警] %s | 设备 %s | %s%n",
+                        record.getAlarmTime(), event.getDeviceId(), event.getDescription());
+                FrMnt.addTask("设备 " + event.getDeviceId() + " 异常：" + event.getDescription());
+                alarmCounter.incrementAndGet();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 return;
