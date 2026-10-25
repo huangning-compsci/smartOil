@@ -18,6 +18,8 @@ import exceptions.InvalidDeviceIdException;
  */
 public class FrDev {
 
+    private static final String[] DEVICE_STATUSES = {"尚未启动", "投运中", "故障", "维修中", "停用"};
+    
     /** 新增设备：数组满时抛 DeviceArrayFullException。 */
     static <T extends Equipment> void add(DeviceArray<T> target, T device)
             throws DeviceArrayFullException {
@@ -255,4 +257,22 @@ public class FrDev {
         return list.toArray(new Equipment[0]);
         
     }
+
+    //设备状态修改
+    public static String chooseDeviceStatus(Scanner sc, boolean allowSkip) {
+        System.out.println("请选择设备状态：");
+        for (int i = 0; i < DEVICE_STATUSES.length; i++) {
+            System.out.println((i + 1) + "." + DEVICE_STATUSES[i]);
+        }
+        if (allowSkip) System.out.println("0.不修改（回车也可跳过）");
+        while (true) {
+            String choice = sc.nextLine().trim();
+            if (allowSkip && (choice.isEmpty() || "0".equals(choice))) return "";
+            if (choice.matches("[1-5]")) return DEVICE_STATUSES[Integer.parseInt(choice) - 1];
+            System.out.println("请输入有效的状态编号！");
+        }
+    }
+
+   
+   
 }

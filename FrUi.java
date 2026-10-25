@@ -1,5 +1,3 @@
-import alarm.AlarmLog;
-import alarm.AlarmRecord;
 import devices.FluidTransportDevices.CentrifugalPump;
 import devices.FluidTransportDevices.Compressor;
 import devices.MonitoringDevices.FlowMeter;
@@ -16,32 +14,19 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Scanner;
 
+import Task.AlarmLog;
+import Task.AlarmRecord;
+import Task.MaintenanceTask;
+
 public class FrUi {
-    private static final String[] DEVICE_STATUSES = {"尚未启动", "投运中", "故障", "维修中", "停用"};
-    private static final java.time.format.DateTimeFormatter MAINTENANCE_TIME_FORMAT =
-            java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
-    private static String chooseDeviceStatus(Scanner sc, boolean allowSkip) {
-        System.out.println("请选择设备状态：");
-        for (int i = 0; i < DEVICE_STATUSES.length; i++) {
-            System.out.println((i + 1) + "." + DEVICE_STATUSES[i]);
-        }
-        if (allowSkip) System.out.println("0.不修改（回车也可跳过）");
-        while (true) {
-            String choice = sc.nextLine().trim();
-            if (allowSkip && (choice.isEmpty() || "0".equals(choice))) return "";
-            if (choice.matches("[1-5]")) return DEVICE_STATUSES[Integer.parseInt(choice) - 1];
-            System.out.println("请输入有效的状态编号！");
-        }
-    }
-
+    
     private static void showResults(Scanner sc, Equipment[] results) {
-        if (results.length == 0) System.out.println("没有符合条件的设备");
-        else {
-            System.out.println("共找到 " + results.length + " 台设备：");
-            System.out.println(FrDev.showInfo(results));
-        }
-        waitForEnter(sc);
+    if (results.length == 0) System.out.println("没有符合条件的设备");
+    else {
+        System.out.println("共找到 " + results.length + " 台设备：");
+        System.out.println(FrDev.showInfo(results));
+    }
+    waitForEnter(sc);
     }
 
     private static void waitForEnter(Scanner sc) {
@@ -81,7 +66,7 @@ public class FrUi {
                     result = FrDev.findByType(sc.nextLine().trim());
                     break;
                 case "3":
-                    result = FrDev.findByStatus(chooseDeviceStatus(sc, false));
+                    result = FrDev.findByStatus(FrDev.chooseDeviceStatus(sc, false));
                     break;
                 case "4":
                     System.out.println("请输入关键字（id/型号/井场）：");
@@ -187,145 +172,9 @@ public class FrUi {
     }
 
     /** 运维任务交互层：只读取输入、调用 FrMnt 并展示结果。 */
-    static void maintenanceMenu(Scanner sc) {
-        boolean active = true;
-        while (active) {
-            System.out.println("\t   运维任务管理");
-            System.out.println("=".repeat(30));
-            System.out.println("1.查看全部工单");
-            System.out.println("2.按状态查询工单");
-            System.out.println("3.人工创建工单");
-            System.out.println("4.分派维修人员");
-            System.out.println("5.接收工单");
-            System.out.println("6.开始维修");
-            System.out.println("7.完成工单");
-            System.out.println("0.返回上一级");
-            System.out.print("请输入您的选择：");
+    
 
-            switch (sc.nextLine().trim()) {
-                case "1":
-                    printMaintenanceTasks(FrMnt.getAll());
-                    waitForEnter(sc);
-                    break;
-                case "2": {
-                    MaintenanceTask.Status status = chooseMaintenanceStatus(sc);
-                    if (status != null) {
-                        printMaintenanceTasks(FrMnt.queryByStatus(status));
-                    }
-                    waitForEnter(sc);
-                    break;
-                }
-                case "3": {
-                    System.out.println("请输入设备编号：");
-                    String deviceId = sc.nextLine().trim();
-                    System.out.println("请输入报修原因：");
-                    String reason = sc.nextLine().trim();
-                    try {
-                        FrDev.findById(deviceId);
-                        MaintenanceTask task = FrMnt.createTask(deviceId, null, reason);
-                        System.out.println("人工工单创建成功：" + task.getTaskId());
-                    } catch (InvalidDeviceIdException | DeviceNotFoundException
-                            | IllegalArgumentException e) {
-                        System.out.println("创建失败：" + e.getMessage());
-                    }
-                    waitForEnter(sc);
-                    break;
-                }
-                case "4": {
-                    System.out.println("请输入工单编号：");
-                    String taskId = sc.nextLine().trim();
-                    System.out.println("请输入维修人员：");
-                    String handler = sc.nextLine().trim();
-                    MaintenanceTask task = FrMnt.findById(taskId);
-                    System.out.println(FrMnt.assignTask(taskId, handler)
-                            ? "工单已分派，等待维修人员接收"
-                            : maintenanceFailure(task, "仅待分派工单可分派，维修人员不能为空"));
-                    waitForEnter(sc);
-                    break;
-                }
-                case "5": {
-                    System.out.println("请输入工单编号：");
-                    String taskId = sc.nextLine().trim();
-                    MaintenanceTask task = FrMnt.findById(taskId);
-                    System.out.println(FrMnt.acceptTask(taskId)
-                            ? "工单已接收"
-                            : maintenanceFailure(task, "仅待接收工单可接收"));
-                    waitForEnter(sc);
-                    break;
-                }
-                case "6": {
-                    System.out.println("请输入工单编号：");
-                    String taskId = sc.nextLine().trim();
-                    MaintenanceTask task = FrMnt.findById(taskId);
-                    System.out.println(FrMnt.startTask(taskId)
-                            ? "维修已开始，设备状态已改为维修中"
-                            : maintenanceFailure(task, "仅已接收且设备仍在库的工单可开始"));
-                    waitForEnter(sc);
-                    break;
-                }
-                case "7": {
-                    System.out.println("请输入工单编号：");
-                    String taskId = sc.nextLine().trim();
-                    System.out.println("请输入处理结果：");
-                    String result = sc.nextLine().trim();
-                    MaintenanceTask task = FrMnt.findById(taskId);
-                    System.out.println(FrMnt.completeTask(taskId, result)
-                            ? "工单已完成，设备状态已改为尚未启动"
-                            : maintenanceFailure(task, "仅执行中的工单可完成，处理结果不能为空"));
-                    waitForEnter(sc);
-                    break;
-                }
-                case "0":
-                    active = false;
-                    break;
-                default:
-                    System.out.println("请输入正确的数字！");
-                    break;
-            }
-        }
-    }
 
-    private static MaintenanceTask.Status chooseMaintenanceStatus(Scanner sc) {
-        System.out.println("1.待分派 2.待接收 3.已接收 4.执行中 5.已完成");
-        return switch (sc.nextLine().trim()) {
-            case "1" -> MaintenanceTask.Status.PENDING_ASSIGNMENT;
-            case "2" -> MaintenanceTask.Status.PENDING_ACCEPTANCE;
-            case "3" -> MaintenanceTask.Status.ACCEPTED;
-            case "4" -> MaintenanceTask.Status.IN_PROGRESS;
-            case "5" -> MaintenanceTask.Status.COMPLETED;
-            default -> {
-                System.out.println("请输入正确的数字！");
-                yield null;
-            }
-        };
-    }
-
-    private static void printMaintenanceTasks(java.util.List<MaintenanceTask> tasks) {
-        if (tasks.isEmpty()) {
-            System.out.println("没有符合条件的运维工单");
-            return;
-        }
-        for (MaintenanceTask task : tasks) {
-            System.out.println("-".repeat(40));
-            System.out.println("工单编号：" + task.getTaskId());
-            System.out.println("设备编号：" + task.getDeviceId());
-            System.out.println("关联报警：" + (task.getAlarmId() == null ? "人工报修" : task.getAlarmId()));
-            System.out.println("报修原因：" + task.getReason());
-            System.out.println("当前状态：" + task.getStatus());
-            System.out.println("维修人员：" + (task.getHandler() == null ? "未分派" : task.getHandler()));
-            System.out.println("创建时间：" + task.getCreateTime().format(MAINTENANCE_TIME_FORMAT));
-            if (task.getFinishTime() != null) {
-                System.out.println("完成时间：" + task.getFinishTime().format(MAINTENANCE_TIME_FORMAT));
-                System.out.println("处理结果：" + task.getResult());
-            }
-        }
-        System.out.println("共 " + tasks.size() + " 张工单");
-    }
-
-    private static String maintenanceFailure(MaintenanceTask task, String rule) {
-        return task == null ? "操作失败：未找到工单" :
-                "操作失败：" + rule + "（当前状态：" + task.getStatus() + "）";
-    }
 
     public static void main(String[] args){
         System.out.println("=".repeat(30));
@@ -522,7 +371,7 @@ public class FrUi {
                                 String newInstallDate = sc.nextLine().trim();
                                 System.out.print("设备型号（当前：" + modifyDevice.getModel() + "，回车跳过）：");
                                 String newModel = sc.nextLine().trim();
-                                String newStatus = chooseDeviceStatus(sc, true);
+                                String newStatus = FrDev.chooseDeviceStatus(sc, true);
 
                                 try {
                                     success = FrDev.modifyById(modifyId, newWellsite, newInstallDate,
@@ -968,7 +817,101 @@ public class FrUi {
 
                 case "4": {
                     sc.nextLine();
-                    maintenanceMenu(sc);
+                            boolean active = true;
+        while (active) {
+            System.out.println("\t   运维任务管理");
+            System.out.println("=".repeat(30));
+            System.out.println("1.查看全部工单");
+            System.out.println("2.按状态查询工单");
+            System.out.println("3.人工创建工单");
+            System.out.println("4.分派维修人员");
+            System.out.println("5.接收工单");
+            System.out.println("6.开始维修");
+            System.out.println("7.完成工单");
+            System.out.println("0.返回上一级");
+            System.out.print("请输入您的选择：");
+
+            switch (sc.nextLine().trim()) {
+                case "1":
+                    FrMnt.printMaintenanceTasks(FrMnt.getAll());
+                    waitForEnter(sc);
+                    break;
+                case "2": {
+                    MaintenanceTask.Status status = FrMnt.chooseMaintenanceStatus(sc);
+                    if (status != null) {
+                        FrMnt.printMaintenanceTasks(FrMnt.queryByStatus(status));
+                    }
+                    waitForEnter(sc);
+                    break;
+                }
+                case "3": {
+                    System.out.println("请输入设备编号：");
+                    String deviceId = sc.nextLine().trim();
+                    System.out.println("请输入报修原因：");
+                    String reason = sc.nextLine().trim();
+                    try {
+                        FrDev.findById(deviceId);
+                        MaintenanceTask task = FrMnt.createTask(deviceId, null, reason);
+                        System.out.println("人工工单创建成功：" + task.getTaskId());
+                    } catch (InvalidDeviceIdException | DeviceNotFoundException
+                            | IllegalArgumentException e) {
+                        System.out.println("创建失败：" + e.getMessage());
+                    }
+                    waitForEnter(sc);
+                    break;
+                }
+                case "4": {
+                    System.out.println("请输入工单编号：");
+                    String taskId = sc.nextLine().trim();
+                    System.out.println("请输入维修人员：");
+                    String handler = sc.nextLine().trim();
+                    MaintenanceTask task = FrMnt.findById(taskId);
+                    System.out.println(FrMnt.assignTask(taskId, handler)
+                            ? "工单已分派，等待维修人员接收"
+                            : FrMnt.maintenanceFailure(task, "仅待分派工单可分派，维修人员不能为空"));
+                    waitForEnter(sc);
+                    break;
+                }
+                case "5": {
+                    System.out.println("请输入工单编号：");
+                    String taskId = sc.nextLine().trim();
+                    MaintenanceTask task = FrMnt.findById(taskId);
+                    System.out.println(FrMnt.acceptTask(taskId)
+                            ? "工单已接收"
+                            : FrMnt.maintenanceFailure(task, "仅待接收工单可接收"));
+                    waitForEnter(sc);
+                    break;
+                }
+                case "6": {
+                    System.out.println("请输入工单编号：");
+                    String taskId = sc.nextLine().trim();
+                    MaintenanceTask task = FrMnt.findById(taskId);
+                    System.out.println(FrMnt.startTask(taskId)
+                            ? "维修已开始，设备状态已改为维修中"
+                            : FrMnt.maintenanceFailure(task, "仅已接收且设备仍在库的工单可开始"));
+                    waitForEnter(sc);
+                    break;
+                }
+                case "7": {
+                    System.out.println("请输入工单编号：");
+                    String taskId = sc.nextLine().trim();
+                    System.out.println("请输入处理结果：");
+                    String result = sc.nextLine().trim();
+                    MaintenanceTask task = FrMnt.findById(taskId);
+                    System.out.println(FrMnt.completeTask(taskId, result)
+                            ? "工单已完成，设备状态已改为尚未启动"
+                            : FrMnt.maintenanceFailure(task, "仅执行中的工单可完成，处理结果不能为空"));
+                    waitForEnter(sc);
+                    break;
+                }
+                case "0":
+                    active = false;
+                    break;
+                default:
+                    System.out.println("请输入正确的数字！");
+                    break;
+            }
+        }
                     break;
                 }
                 case "5":

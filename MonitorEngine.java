@@ -5,6 +5,8 @@ import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import Task.DataCollectionTask;
+
 public class MonitorEngine {
     // 保存本轮报警结果，而不是下一轮可能被改写的设备对象。
     private final BlockingQueue<AlarmException> alarmQueue = new LinkedBlockingQueue<>(100);
@@ -56,7 +58,7 @@ public class MonitorEngine {
                 if (event == null) {
                     continue;
                 }
-                alarm.AlarmRecord record = alarm.AlarmLog.record(event);
+                Task.AlarmRecord record = Task.AlarmLog.record(event);
                 synchronized (alarmDisplayLock) {
                     if (realtimeAlarmDisplayEnabled) {
                         System.out.printf("[实时报警] %s | 设备 %s | %s%n",

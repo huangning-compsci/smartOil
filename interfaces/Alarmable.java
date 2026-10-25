@@ -1,7 +1,7 @@
 package interfaces;
 
-import alarm.AlarmLog;
-import alarm.AlarmRecord;
+import Task.AlarmLog;
+import Task.AlarmRecord;
 import exceptions.AlarmException;
 
 /**
