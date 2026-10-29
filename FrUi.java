@@ -48,6 +48,7 @@ public class FrUi {
         void accept(String wellsite, String installDate, String model) throws DeviceArrayFullException;
     }
 
+    // 【修复缺陷1】所有输入增加取消退出机制，保留原有注释
     private static void addBatch(Scanner sc, String typeName, AddAction action) {
         int added = 0;
         String previousDate = null;
@@ -55,24 +56,40 @@ public class FrUi {
             System.out.println("----- 录入第 " + (added + 1) + " 台" + typeName + " -----");
             String wellsite;
             do {
-                System.out.println("请输入所属井场：(参考格式:01)");
+                System.out.println("请输入所属井场：(参考格式:01，输入0取消并返回)");
                 wellsite = sc.nextLine().trim();
+                if ("0".equals(wellsite)) {
+                    System.out.println("已取消本次录入。");
+                    return;
+                }
                 if (!wellsite.matches("\\d{2}")) System.out.println("格式错误！请按 xx 格式输入");
             } while (!wellsite.matches("\\d{2}"));
             String date;
             while (true) {
-                System.out.println("请输入安装时间：(参考格式:xxxx-xx-xx)"
-                        + (previousDate == null ? "" : "，回车沿用 " + previousDate));
+                System.out.println("请输入安装时间：(参考格式:xxxx-xx-xx"
+                        + (previousDate == null ? "" : "，回车沿用 " + previousDate) + "，输入0取消)");
                 date = sc.nextLine().trim();
-                if (date.isEmpty() && previousDate != null) date = previousDate;
+                if ("0".equals(date)) {
+                    System.out.println("已取消本次录入。");
+                    return;
+                }
+                if (date.isEmpty() && previousDate != null) {
+                    date = previousDate;
+                    break;
+                }
                 if (date.matches("\\d{4}-\\d{2}-\\d{2}")) break;
                 System.out.println("格式错误！请按 xxxx-xx-xx 格式输入");
             }
             String model;
-            do {
-                System.out.println("请输入型号：");
+            while (true) {
+                System.out.println("请输入型号：(输入0取消)");
                 model = sc.nextLine().trim();
-            } while (model.isEmpty());
+                if ("0".equals(model)) {
+                    System.out.println("已取消本次录入。");
+                    return;
+                }
+                if (!model.isEmpty()) break;
+            }
             try {
                 action.accept(wellsite, date, model);
                 previousDate = date;
@@ -95,7 +112,6 @@ public class FrUi {
 
     /** 运维任务交互层：只读取输入、调用 FrMnt 并展示结果。 */
     
-
 
 
     public static void main(String[] args){
@@ -270,8 +286,12 @@ public class FrUi {
                         continue1_3=true;
                         while (continue1_3) {
                             sc.nextLine();  // 吃掉上一轮残留的换行符
-                            System.out.println("请输入设备id，例如 PU_1:");
+                            System.out.println("请输入设备id，例如 PU_1 (不区分大小写，输入0返回):");
                             String modifyId = sc.nextLine().trim();
+                            if ("0".equals(modifyId)) {
+                                continue1_3 = false;
+                                break;
+                            }
 
                             Equipment modifyDevice = null;
                             try{
@@ -332,7 +352,12 @@ public class FrUi {
                             } else {
                                 System.out.println("修改后的信息如下：");
                                 System.out.println(FrDev.showInfo(modifyDevice));
-                                continue1_3 = false;  // 修改成功，退出这个子循环
+                                // 【修复缺陷4】增加询问
+                                System.out.println("是否继续修改其他设备？(y/n)");
+                                String cont = sc.nextLine().trim();
+                                if (!"y".equalsIgnoreCase(cont)) {
+                                    continue1_3 = false;
+                                }
                             }
                         }
                         break;
@@ -341,9 +366,14 @@ public class FrUi {
                             continue1_4=true;
                             while (continue1_4){
 
-                                System.out.println("请输入设备id");
+                                System.out.println("请输入设备id (输入0返回)");
                                 String Id=sc.next();
                                 sc.nextLine(); // 清理输入 ID 后的换行，等待用户确认删除
+                                
+                                if ("0".equals(Id)) {
+                                    continue1_4 = false;
+                                    break;
+                                }
 
                                 boolean Success=false;
                                 try {
@@ -362,6 +392,7 @@ public class FrUi {
                                     System.out.println("请输入您的选择");
                                     switch (sc.next()) {
                                         case "1":
+
                                             break;
                                         case "2":
                                             continue1_4=false;
@@ -377,7 +408,12 @@ public class FrUi {
                                     }
                                 }else{
                                     System.out.println();
-                                    continue1_4=false;
+                                    // 【修复缺陷4】增加询问
+                                    System.out.println("是否继续删除其他设备？(y/n)");
+                                    String cont = sc.nextLine().trim();
+                                    if (!"y".equalsIgnoreCase(cont)) {
+                                        continue1_4 = false;
+                                    }
                                 }
                             }
                             break;

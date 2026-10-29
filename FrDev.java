@@ -134,7 +134,10 @@ public class FrDev {
             throw new InvalidDeviceIdException(id, "编号必须大于 0");
         }
 
-        DeviceArray<? extends Equipment> pool = switch (parts[0]) {
+        // 【修复缺陷3】转大写
+        String prefix = parts[0].toUpperCase(java.util.Locale.ROOT);
+
+        DeviceArray<? extends Equipment> pool = switch (prefix) {
             case "PU" -> PumpingUnit.getDevices();
             case "CP" -> CentrifugalPump.getDevices();
             case "PS" -> PressureSensor.getDevices();
@@ -142,7 +145,7 @@ public class FrDev {
             case "FM" -> FlowMeter.getDevices();
             case "CM" -> Compressor.getDevices();
             default -> throw new InvalidDeviceIdException(id,
-                    "未知设备前缀 " + parts[0] + "（可选 PU/CP/PS/TS/FM/CM）");
+                    "未知设备前缀 " + prefix + "（可选 PU/CP/PS/TS/FM/CM）");
         };
 
         // 查询用 getOrNull：越界返回 null 而不是抛越界异常
@@ -179,9 +182,10 @@ public class FrDev {
 
         // id 已通过 findById 校验，这里拆分一定安全
         String[] parts = id.trim().split("_");
+        String prefix = parts[0].toUpperCase(java.util.Locale.ROOT); // 适配大小写
         int index = Integer.parseInt(parts[1]) - 1;
 
-        return switch (parts[0]) {
+        return switch (prefix) {
             case "PU" -> PumpingUnit.getDevices().remove(index);
             case "CP" -> CentrifugalPump.getDevices().remove(index);
             case "PS" -> PressureSensor.getDevices().remove(index);
@@ -253,9 +257,7 @@ public class FrDev {
                 }
             }
         }
-        
         return list.toArray(new Equipment[0]);
-        
     }
 
     //设备状态修改
@@ -272,7 +274,4 @@ public class FrDev {
             System.out.println("请输入有效的状态编号！");
         }
     }
-
-   
-   
 }

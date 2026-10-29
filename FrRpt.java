@@ -75,35 +75,52 @@ public class FrRpt {
     }
 
 
-    public  static void queryDevices(Scanner sc) {
-        System.out.println("1.按编号查询\n2.按类型查询\n3.按状态查询\n4.模糊查询（id/型号/井场）");
-        String choice = sc.nextLine().trim();
-        try {
-            Equipment[] result;
-            switch (choice) {
-                case "1":
-                    System.out.println("请输入设备id,例如 PU_1:");
-                    result = new Equipment[]{FrDev.findById(sc.nextLine().trim())};
-                    break;
-                case "2":
-                    System.out.println("请输入设备类型（PU/CP/PS/TS/FM/CM、英文类型名或中文名）：");
-                    result = FrDev.findByType(sc.nextLine().trim());
-                    break;
-                case "3":
-                    result = FrDev.findByStatus(FrDev.chooseDeviceStatus(sc, false));
-                    break;
-                case "4":
-                    System.out.println("请输入关键字（id/型号/井场）：");
-                    result = FrDev.fuzzyFind(sc.nextLine());
-                    break;
-                default:
-                    System.out.println("请输入正确的数字！");
-                    return;
+    // 【修复缺陷4】支持连续查询
+    public static void queryDevices(Scanner sc) {
+        boolean continueQuery = true;
+        while (continueQuery) {
+            System.out.println("1.按编号查询\n2.按类型查询\n3.按状态查询\n4.模糊查询（id/型号/井场）\n0.返回上一级");
+            String choice = sc.nextLine().trim();
+            if ("0".equals(choice)) break;
+
+            try {
+                Equipment[] result;
+                switch (choice) {
+                    case "1":
+                        System.out.println("请输入设备id,例如 PU_1 (不区分大小写):");
+                        result = new Equipment[]{FrDev.findById(sc.nextLine().trim())};
+                        break;
+                    case "2":
+                        System.out.println("请输入设备类型（PU/CP/PS/TS/FM/CM、英文类型名或中文名）：");
+                        result = FrDev.findByType(sc.nextLine().trim());
+                        break;
+                    case "3":
+                        result = FrDev.findByStatus(FrDev.chooseDeviceStatus(sc, false));
+                        break;
+                    case "4":
+                        System.out.println("请输入关键字（id/型号/井场）：");
+                        result = FrDev.fuzzyFind(sc.nextLine());
+                        break;
+                    default:
+                        System.out.println("请输入正确的数字！");
+                        continue;
+                }
+                
+                if (result.length == 0) {
+                    System.out.println("没有符合条件的设备");
+                } else {
+                    System.out.println("共找到 " + result.length + " 台设备：");
+                    System.out.println(FrDev.showInfo(result));
+                }
+            } catch (InvalidDeviceIdException | DeviceNotFoundException | IllegalArgumentException e) {
+                System.out.println(e.getMessage());
             }
-            showResults(sc, result);
-        } catch (InvalidDeviceIdException | DeviceNotFoundException | IllegalArgumentException e) {
-            System.out.println(e.getMessage());
-            FrUi.waitForEnter(sc);
+
+            System.out.println("\n是否继续查询其他设备？(y/n)");
+            String cont = sc.nextLine().trim();
+            if (!"y".equalsIgnoreCase(cont)) {
+                continueQuery = false;
+            }
         }
     }
 
